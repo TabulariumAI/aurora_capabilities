@@ -44,7 +44,7 @@ or browser-delivery APIs.
 
 ## Package Baseline
 
-Create the package by matching the current `aurora_reffine` package layout and
+Create the package by matching the current `aurora_refine` package layout and
 tooling.
 
 ### Required root files
@@ -84,7 +84,7 @@ Use these scripts:
 }
 ```
 
-Use the versions currently declared by `aurora_reffine`:
+Use the versions currently declared by `aurora_refine`:
 
 ```json
 {
@@ -135,7 +135,7 @@ tests in `jsdom`; include `src/**/*.{test,spec}.{ts,tsx}` and
 Configure package Playwright at viewport `1440x900` and test only
 `test/capabilities.visual.spec.ts`.
 
-Copy `aurora_reffine/scripts/check-boundary.cjs` and adapt only its dependency
+Copy `aurora_refine/scripts/check-boundary.cjs` and adapt only its dependency
 list for this package. Keep its recursive source scan and all existing host,
 legacy, global, EventBus, alert, environment, API, and worker-helper
 prohibitions. Add `aurorra_index` as an allowed package dependency.
@@ -573,7 +573,7 @@ preparation formula is the source.
 ## Zustand State Contract
 
 Each store file exports one bound Zustand hook created with `create`, matching
-`aurora_reffine`: `useComputeStore`, `useCompositionStore`, `useRecordStore`,
+`aurora_refine`: `useComputeStore`, `useCompositionStore`, `useRecordStore`,
 `useRedactStore`, or `useManifestStore`. Callers use the hook for React
 selection and `.getState()` for actions. Do not add a second store API export
 or keep parallel panel-local copies of request, result, failure, status, open
@@ -649,7 +649,7 @@ State rules:
 Implement direct `fetch` in `capabilityHttp.ts`; do not import the host worker
 helper.
 
-Match `aurora_reffine` and normalize only the configured API base URL with
+Match `aurora_refine` and normalize only the configured API base URL with
 `apiBaseUrl.replace(/\/+$/, "")` before appending the exact routes below. Do
 not normalize session, token, document, route segments, response values, or
 poll interval.
@@ -688,7 +688,7 @@ The only exception is compute data, including record's compute-data call:
 preserve an exact empty string as `""` instead of parsing it.
 
 Create one module Web Worker client factory per feature. Each factory takes
-`{ apiBaseUrl: string }`. Match `aurora_reffine`: each client command creates
+`{ apiBaseUrl: string }`. Match `aurora_refine`: each client command creates
 one feature worker with
 `new Worker(new URL("./FeatureWorker.ts", import.meta.url), { type: "module" })`,
 posts one command, settles one response, and terminates that worker on message
