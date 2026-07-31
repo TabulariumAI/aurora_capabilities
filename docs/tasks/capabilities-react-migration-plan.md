@@ -543,7 +543,7 @@ creation, host storage access, alerts, or worker bootstrap.
 | --- | --- |
 | `document_web/src/domains/compute/api/computeWorker.js` | `features/compute/worker/ComputeWorker.ts` and `computeWorkerClient.ts` |
 | `document_web/src/domains/compute/svc/compute_service.js` | `features/compute/hook/useCompute.ts`, store, panel, and tests |
-| `document_web/src/domains/title/api/compositionWorker.js` | `features/composition/worker/CompositionWorker.ts` and `compositionWorkerClient.ts` |
+| Former composition worker | `features/composition/worker/CompositionWorker.ts` and `compositionWorkerClient.ts` |
 | `document_web/src/domains/composition/svc/composition_service.js` | `features/composition/hook/useComposition.ts`, store, panel, and tests |
 | `document_web/src/domains/record/api/recordWorker.js` | `features/record/worker/RecordWorker.ts` and `recordWorkerClient.ts` |
 | `document_web/src/domains/record/svc/record_service.js` | `features/record/hook/useRecord.ts`, store, and processing tests |
