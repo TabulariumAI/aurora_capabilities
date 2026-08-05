@@ -15,11 +15,12 @@ export function useRecord({ onComplete, onError, request, workerClient }: Pick<R
     useRecordStore.getState().open(request);
     if (!useRecordStore.getState().setRunning(request.requestId)) return;
     let canceled = false;
+    let operation: RecordFailure["operation"] = "status";
     const fail = (operation: RecordFailure["operation"], error: unknown) => {
-      const defaultMessage = operation === "data" ? "Retrive metadata failed." : "Record request failed.";
+      const defaultMessage = operation === "data" ? "Retrieve metadata failed." : "Record request failed.";
       const failure: RecordFailure = {
         capability: "record",
-        error: operation === "data" ? { code: "RETRIVE_METADATA_FAILED", error: "Retrive metadata failed." } : workerError(error, defaultMessage),
+        error: operation === "data" ? { code: "RETRIEVE_METADATA_FAILED", error: "Retrieve metadata failed." } : workerError(error, defaultMessage),
         operation,
         requestId: request.requestId,
         session: request.session,
@@ -33,23 +34,27 @@ export function useRecord({ onComplete, onError, request, workerClient }: Pick<R
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Record status failed." };
         let complete = isComplete(response.status);
         if (!complete) {
+          operation = "compute-data";
           const metadata = await client.computeData(request.authToken, request.session);
           if (metadata === "") throw { code: "INVALID_JSON_INPUT_HEAD", error: "Invalid JSON input: missing heading" };
+          operation = "submit";
           await client.submit(request.authToken, request.session, prepareRecordMetadata(metadata));
           for (let attempt = 0; !complete && attempt < 21; attempt += 1) {
             await wait(request.intervalMs);
+            operation = "status";
             response = await client.status(request.authToken, request.session);
             if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Record status failed." };
             complete = isComplete(response.status);
           }
         }
         if (!complete) throw { code: "RECORD_TIMEOUT", error: "Record timed out." };
+        operation = "data";
         const result = await client.data(request.authToken, request.session);
         if (canceled) return;
         useRecordStore.getState().setReady(request.requestId, result);
         onComplete({ capability: "record", outcome: "completed", requestId: request.requestId, result, session: request.session });
       } catch (error) {
-        if (!canceled) fail("data", error);
+        if (!canceled) fail(operation, error);
       }
     })();
     return () => {

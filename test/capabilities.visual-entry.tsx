@@ -30,6 +30,7 @@ function App() {
         onDownloadCover={async () => undefined}
         onDownloadDocument={async () => undefined}
         onError={() => undefined}
+        onReadyChange={() => undefined}
       />
       <RedactPanel
         request={{ ...requestBase, capability: "redact", document: "visual.pdf", requestId: "visual-redact" }}
@@ -41,6 +42,7 @@ function App() {
         onComplete={() => undefined}
         onDownloadPdf={async () => undefined}
         onError={() => undefined}
+        onReadyChange={() => undefined}
       />
       <ManifestPanel
         request={{ ...requestBase, capability: "manifest", requestId: "visual-manifest" }}
@@ -52,6 +54,7 @@ function App() {
         onComplete={() => undefined}
         onDownloadPdf={async () => undefined}
         onError={() => undefined}
+        onReadyChange={() => undefined}
       />
     </main>
   );

@@ -18,4 +18,21 @@ describe("useRecord", () => {
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
   });
+
+  it("reports compute failures with the compute-data operation", async () => {
+    const onError = vi.fn();
+    renderHook(() => useRecord({
+      request: { authToken: "t", capability: "record", document: "d", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-record-compute", session: "s" },
+      onComplete: vi.fn(),
+      onError,
+      workerClient: {
+        status: async () => ({ data: null, status: "processing" }),
+        computeData: async () => { throw new Error("Compute failed"); },
+        submit: vi.fn(),
+        data: vi.fn(),
+      },
+    }));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "compute-data" })));
+  });
 });

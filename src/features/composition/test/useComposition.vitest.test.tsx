@@ -18,4 +18,20 @@ describe("useComposition", () => {
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
   });
+
+  it("reports status failures with the status operation", async () => {
+    const onError = vi.fn();
+    renderHook(() => useComposition({
+      request: { authToken: "t", capability: "composition", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-comp-status", session: "s" },
+      onComplete: vi.fn(),
+      onError,
+      workerClient: {
+        submit: async () => ({ data: null, status: "processing" }),
+        status: async () => { throw new Error("Status failed"); },
+        data: vi.fn(),
+      },
+    }));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "status" })));
+  });
 });

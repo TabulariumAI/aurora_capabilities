@@ -14,6 +14,7 @@ export function useRedact({ onComplete, onError, request, workerClient }: Pick<R
     useRedactStore.getState().open(request);
     if (!useRedactStore.getState().setRunning(request.requestId)) return;
     let canceled = false;
+    let operation: RedactFailure["operation"] = "status";
     const fail = (operation: RedactFailure["operation"], error: unknown, defaultMessage: string) => {
       const failure: RedactFailure = {
         capability: "redact",
@@ -31,22 +32,25 @@ export function useRedact({ onComplete, onError, request, workerClient }: Pick<R
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Redaction status check failed." };
         let complete = isComplete(response.status);
         if (!complete) {
+          operation = "submit";
           response = await client.submit(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Redaction submit failed." };
         }
         for (let attempt = 0; !complete && attempt < 21; attempt += 1) {
           await wait(request.intervalMs);
+          operation = "status";
           response = await client.status(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Redaction status check failed." };
           complete = isComplete(response.status);
         }
         if (!complete) throw { code: "REDACT_TIMEOUT_REFRESH", error: "Redaction timed out." };
+        operation = "data";
         const result = await client.data(request.authToken, request.session);
         if (canceled) return;
         useRedactStore.getState().setReady(request.requestId, result);
         onComplete({ capability: "redact", outcome: "completed", requestId: request.requestId, result, session: request.session });
       } catch (error) {
-        if (!canceled) fail("status", error, "Redaction status check failed.");
+        if (!canceled) fail(operation, error, `Redaction ${operation} failed.`);
       }
     })();
     return () => {

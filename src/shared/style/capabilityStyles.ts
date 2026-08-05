@@ -2,25 +2,13 @@ import type { CSSProperties } from "react";
 
 export const capabilityStyles = {
   metadataShell: {
-    width: "100%",
-    minWidth: 0,
-  } satisfies CSSProperties,
-  loadingStack: {
-    width: "100%",
     display: "flex",
+    flex: "1 1 auto",
     flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: "0.35rem",
-    margin: "0 auto",
-    textAlign: "center",
-  } satisfies CSSProperties,
-  loadingMessage: {
+    minHeight: 0,
+    minWidth: 0,
+    overflow: "hidden",
     width: "100%",
-    textAlign: "center",
-    fontSize: "130%",
-    minHeight: "1.5rem",
-    margin: "0 auto",
   } satisfies CSSProperties,
   dialogBody: {
     display: "flex",
@@ -28,7 +16,6 @@ export const capabilityStyles = {
     justifyContent: "center",
     alignItems: "center",
     gap: "0.75rem",
-    padding: "1rem",
   } satisfies CSSProperties,
   readyTitle: {
     fontSize: "1.2rem",
@@ -59,9 +46,7 @@ export const capabilityStyles = {
   }),
   recordWrap: {
     position: "relative",
-    margin: "0 auto",
     width: "100%",
-    maxWidth: "56rem",
   } satisfies CSSProperties,
   recordTitle: {
     position: "absolute",

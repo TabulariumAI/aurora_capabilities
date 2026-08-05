@@ -876,8 +876,8 @@ Preserve the current service-layer error mapping:
   `An error occurred during composition: ${response.data.data}`
 - record status, compute-data, and submit use the worker/HTTP error directly
 - record data maps any worker/client rejection to
-  `RETRIVE_METADATA_FAILED` /
-  `Retrive metadata failed.`
+  `RETRIEVE_METADATA_FAILED` /
+  `Retrieve metadata failed.`
 - redact resolves
   `normalized.display`, `error`, `details.message`, `message`, then the
   operation fallback in that order; the fallbacks are
@@ -1013,9 +1013,9 @@ the underlines; parent host tests cover browser key events.
 
 Loading messages, in order:
 
-1. `Retriving Indexes...`
+1. `Retrieving Indexes...`
 2. `Analyzing Indexing...`
-3. `Generating Endorsment page..`
+3. `Generating Endorsement page...`
 4. `Annotating Pages...`
 5. `Annotating Pages...`
 6. `Retrieving Recording...`
@@ -1061,7 +1061,7 @@ not emit another processing terminal, and leaves capability status `ready`.
 
 Loading messages, in order:
 
-1. `Retriving Confidential Information...`
+1. `Retrieving Confidential Information...`
 2. `Analyzing Confidential Information...`
 3. `Redacting Pages...`
 4. `Redacting Pages...`
@@ -1088,7 +1088,7 @@ terminal state unchanged.
 
 Loading messages, in order:
 
-1. `Retriving Indexes...`
+1. `Retrieving Indexes...`
 2. `Analyzing Indexing...`
 3. `Generating IQ page..`
 4. `Generating Index Pages...`

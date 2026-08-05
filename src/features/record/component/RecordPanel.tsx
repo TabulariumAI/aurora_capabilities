@@ -1,7 +1,7 @@
 import * as ScrollArea from "@radix-ui/react-scroll-area";
-import type { JSX } from "react";
-import { CapabilityLoading } from "../../../shared/component/CapabilityLoading";
+import { useEffect, type JSX } from "react";
 import { DeliveryNotice } from "../../../shared/component/DeliveryNotice";
+import { useLoadingMessages } from "../../../shared/hook/useLoadingMessages";
 import { capabilityStyles } from "../../../shared/style/capabilityStyles";
 import type { RecordPanelProps } from "../../../shared/type/capability.types";
 import { getRecordSummaryItems } from "../data/recordData";
@@ -9,9 +9,9 @@ import { useRecord } from "../hook/useRecord";
 import { useRecordStore } from "../store/recordStore";
 
 const loadingMessages = [
-  "Retriving Indexes...",
+  "Retrieving Indexes...",
   "Analyzing Indexing...",
-  "Generating Endorsment page..",
+  "Generating Endorsement page...",
   "Annotating Pages...",
   "Annotating Pages...",
   "Retrieving Recording...",
@@ -21,16 +21,25 @@ const loadingMessages = [
 export function RecordPanel(props: RecordPanelProps): JSX.Element {
   useRecord(props);
   const store = useRecordStore();
-  if (store.status === "loading") {
-    return <CapabilityLoading intervalMs={props.request.intervalMs} messages={loadingMessages} showText />;
-  }
+  const loading = store.status === "idle" || store.status === "loading";
+  const message = useLoadingMessages(loadingMessages, props.request.intervalMs, loading);
+
+  useEffect(() => {
+    props.onReadyChange(store.status !== "idle" && store.status !== "loading");
+  }, [props.onReadyChange, store.status]);
+
+  useEffect(() => {
+    props.onLoaderChange?.(message ? [message] : null);
+  }, [message, props.onLoaderChange]);
+
   if (store.status !== "ready" || !store.result) return <></>;
-  const items = getRecordSummaryItems(props.request.session, store.result, store.result.heading);
+  const result = store.result;
+  const items = getRecordSummaryItems(props.request.session, result, result.heading);
   const runDelivery = async (target: "document" | "cover") => {
     const isDocument = target === "document";
     useRecordStore.getState().setDelivery(target, isDocument ? "Downloading recorded document" : "Preparing cover page (receipt)...");
     try {
-      await (isDocument ? props.onDownloadDocument(store.result?.document) : props.onDownloadCover(store.result?.cover));
+      await (isDocument ? props.onDownloadDocument(result.document) : props.onDownloadCover(result.cover));
       useRecordStore.getState().setDelivery(null, isDocument ? "Recorded document downloaded" : "Cover page (receipt) downloaded.");
     } catch {
       useRecordStore.getState().setDelivery(null, isDocument ? "Failed to download recorded document" : "Failed to download cover page (receipt).", "error");

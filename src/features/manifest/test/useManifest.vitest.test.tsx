@@ -17,4 +17,20 @@ describe("useManifest", () => {
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
   });
+
+  it("reports data failures with the data operation", async () => {
+    const onError = vi.fn();
+    renderHook(() => useManifest({
+      request: { authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-data", session: "s" },
+      onComplete: vi.fn(),
+      onError,
+      workerClient: {
+        status: async () => ({ data: null, status: "completed" }),
+        submit: vi.fn(),
+        data: async () => { throw new Error("Data failed"); },
+      },
+    }));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "data" })));
+  });
 });

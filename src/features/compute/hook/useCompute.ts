@@ -15,6 +15,7 @@ export function useCompute({ onComplete, onError, request, workerClient }: Pick<
     useComputeStore.getState().open(request, "fee");
     if (!useComputeStore.getState().setRunning(request.requestId)) return;
     let canceled = false;
+    let operation: ComputeFailure["operation"] = "submit";
 
     const fail = (operation: ComputeFailure["operation"], error: unknown) => {
       const failure: ComputeFailure = {
@@ -32,26 +33,30 @@ export function useCompute({ onComplete, onError, request, workerClient }: Pick<
       try {
         let response = await client.submit(request.authToken, request.session);
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
+        operation = "status";
         response = await client.status(request.authToken, request.session);
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
         let complete = isComplete(response.status);
         if (!complete) {
+          operation = "submit";
           response = await client.submit(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
           for (let attempt = 0; !complete && attempt < 27; attempt += 1) {
             await wait(request.intervalMs);
+            operation = "status";
             response = await client.status(request.authToken, request.session);
             if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
             complete = isComplete(response.status);
           }
         }
         if (!complete) throw { code: "COMPUTE_TIMEOUT", error: "Compute timed out." };
+        operation = "data";
         const result = await client.data(request.authToken, request.session);
         if (canceled) return;
         useComputeStore.getState().setReady(request.requestId, result);
         onComplete({ capability: "compute", outcome: "completed", requestId: request.requestId, result, session: request.session });
       } catch (error) {
-        if (!canceled) fail("submit", error);
+        if (!canceled) fail(operation, error);
       }
     })();
 

@@ -198,6 +198,7 @@ export type ComputePanelProps = {
   callbacks: MetadataCapabilityCallbacks;
   onComplete: (terminal: CapabilityComplete<"compute", ComputeResult>) => void;
   onError: (failure: ComputeFailure) => void;
+  onReadyChange(ready: boolean): void;
   request: ComputeRequest;
   segments: IndexSegmentValues;
   workerClient?: ComputeWorkerClient;
@@ -207,6 +208,7 @@ export type CompositionPanelProps = {
   callbacks: MetadataCapabilityCallbacks;
   onComplete: (terminal: CapabilityComplete<"composition", CompositionResult>) => void;
   onError: (failure: CompositionFailure) => void;
+  onReadyChange(ready: boolean): void;
   request: CompositionRequest;
   segments: IndexSegmentValues;
   workerClient?: CompositionWorkerClient;
@@ -217,6 +219,8 @@ export type RecordPanelProps = {
   onDownloadCover: (blobName: unknown) => Promise<void>;
   onDownloadDocument: (blobName: unknown) => Promise<void>;
   onError: (failure: RecordFailure) => void;
+  onLoaderChange?(lines: readonly string[] | null): void;
+  onReadyChange(ready: boolean): void;
   request: RecordRequest;
   workerClient?: RecordWorkerClient;
 };
@@ -225,6 +229,8 @@ export type RedactPanelProps = {
   onComplete: (terminal: CapabilityComplete<"redact", RedactResult>) => void;
   onDownloadPdf: (blobName: string) => Promise<void>;
   onError: (failure: RedactFailure) => void;
+  onLoaderChange?(lines: readonly string[] | null): void;
+  onReadyChange(ready: boolean): void;
   request: RedactRequest;
   workerClient?: RedactWorkerClient;
 };
@@ -233,6 +239,8 @@ export type ManifestPanelProps = {
   onComplete: (terminal: CapabilityComplete<"manifest", ManifestResult>) => void;
   onDownloadPdf: (pdfUrl: string) => Promise<void>;
   onError: (failure: ManifestFailure) => void;
+  onLoaderChange?(lines: readonly string[] | null): void;
+  onReadyChange(ready: boolean): void;
   request: ManifestRequest;
   workerClient?: ManifestWorkerClient;
 };

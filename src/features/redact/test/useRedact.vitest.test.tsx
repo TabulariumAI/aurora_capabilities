@@ -17,4 +17,20 @@ describe("useRedact", () => {
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
   });
+
+  it("reports submit failures with the submit operation", async () => {
+    const onError = vi.fn();
+    renderHook(() => useRedact({
+      request: { authToken: "t", capability: "redact", document: "d", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-redact-submit", session: "s" },
+      onComplete: vi.fn(),
+      onError,
+      workerClient: {
+        status: async () => ({ data: null, status: "processing" }),
+        submit: async () => { throw new Error("Submit failed"); },
+        data: vi.fn(),
+      },
+    }));
+
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "submit" })));
+  });
 });

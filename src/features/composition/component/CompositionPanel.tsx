@@ -1,40 +1,18 @@
-import { useMemo, type JSX } from "react";
-import type { IndexSegmentValues } from "aurorra-index";
-import { CapabilityLoading } from "../../../shared/component/CapabilityLoading";
+import { useEffect, useMemo, type JSX } from "react";
 import { MetadataResult } from "../../../shared/component/MetadataResult";
-import type { CompositionPanelProps } from "../../../shared/type/capability.types";
+import { CAPABILITY_SHORTCUTS, type CompositionPanelProps } from "../../../shared/type/capability.types";
 import { useComposition } from "../hook/useComposition";
 import { useCompositionStore } from "../store/compositionStore";
-
-function shortcuts(segments: IndexSegmentValues) {
-  return new Map([
-    [segments.CHAIN, "c"],
-    [segments.HISTORY, "k"],
-    [segments.FEEFACTOR, "g"],
-    [segments.FEE, "b"],
-    [segments.FUND, "u"],
-    [segments.PAGE, "a"],
-    [segments.SECRETS, "c"],
-    [segments.TITLE, "t"],
-    [segments.ENDORSEMENT, "e"],
-    [segments.PARTY, "p"],
-    [segments.REFERENCE, "r"],
-    [segments.PROPERTY, "x"],
-    [segments.LEGAL, "l"],
-    [segments.MONETARY, "m"],
-    [segments.ACKNOWLEDGMENT, "n"],
-    [segments.VITAL, "w"],
-    [segments.TRANSACTION, "s"],
-  ]);
-}
 
 export function CompositionPanel(props: CompositionPanelProps): JSX.Element {
   useComposition(props);
   const store = useCompositionStore();
-  const shortcutMap = useMemo(() => shortcuts(props.segments), [props.segments]);
-  if (store.status === "loading") {
-    return <CapabilityLoading intervalMs={props.request.intervalMs} showText={false} />;
-  }
+  const shortcutMap = useMemo(() => new Map(CAPABILITY_SHORTCUTS.map(({ key, segment }) => [props.segments[segment], key])), [props.segments]);
+
+  useEffect(() => {
+    props.onReadyChange(store.status !== "idle" && store.status !== "loading");
+  }, [props.onReadyChange, store.status]);
+
   if (store.status !== "ready" || store.result == null) return <></>;
   return (
     <MetadataResult

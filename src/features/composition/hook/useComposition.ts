@@ -15,6 +15,7 @@ export function useComposition({ onComplete, onError, request, workerClient }: P
     useCompositionStore.getState().open(request, "chain");
     if (!useCompositionStore.getState().setRunning(request.requestId)) return;
     let canceled = false;
+    let operation: CompositionFailure["operation"] = "submit";
     const fail = (operation: CompositionFailure["operation"], error: unknown) => {
       const failure: CompositionFailure = {
         capability: "composition",
@@ -30,22 +31,25 @@ export function useComposition({ onComplete, onError, request, workerClient }: P
       try {
         let response = await client.submit(request.authToken, request.session);
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Composition request failed." };
+        operation = "status";
         response = await client.status(request.authToken, request.session);
         if (isFailed(response.status)) throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as { data?: unknown })?.data}` };
         let complete = isComplete(response.status);
         for (let attempt = 0; !complete && attempt < 27; attempt += 1) {
           await wait(request.intervalMs);
+          operation = "status";
           response = await client.status(request.authToken, request.session);
           if (isFailed(response.status)) throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as { data?: unknown })?.data}` };
           complete = isComplete(response.status);
         }
         if (!complete) throw { code: "COMPOSITION_TIMEOUT", error: "Composition timed out." };
+        operation = "data";
         const result = await client.data(request.authToken, request.session);
         if (canceled) return;
         useCompositionStore.getState().setReady(request.requestId, result);
         onComplete({ capability: "composition", outcome: "completed", requestId: request.requestId, result, session: request.session });
       } catch (error) {
-        if (!canceled) fail("submit", error);
+        if (!canceled) fail(operation, error);
       }
     })();
     return () => {

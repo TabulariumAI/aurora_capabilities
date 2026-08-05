@@ -14,6 +14,8 @@ export function useManifest({ onComplete, onError, request, workerClient }: Pick
     useManifestStore.getState().open(request);
     if (!useManifestStore.getState().setRunning(request.requestId)) return;
     let canceled = false;
+    let operation: ManifestFailure["operation"] = "status";
+    let prefix = "Manifest checkStatus failed";
     const fail = (operation: ManifestFailure["operation"], error: unknown, prefix: string) => {
       const base = workerError(error, `${prefix} failed.`);
       const failure: ManifestFailure = {
@@ -32,22 +34,28 @@ export function useManifest({ onComplete, onError, request, workerClient }: Pick
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Manifest checkStatus failed." };
         let complete = isComplete(response.status);
         if (!complete) {
+          operation = "submit";
+          prefix = "Manifest submit failed";
           response = await client.submit(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Manifest submit failed." };
           for (let attempt = 0; !complete && attempt < 21; attempt += 1) {
             await wait(request.intervalMs);
+            operation = "status";
+            prefix = "Manifest checkStatus failed";
             response = await client.status(request.authToken, request.session);
             if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Manifest checkStatus failed." };
             complete = isComplete(response.status);
           }
         }
         if (!complete) throw { code: "REPORT_TIMEOUT", error: "Report timed out." };
+        operation = "data";
+        prefix = "Manifest data retrieval failed";
         const result = await client.data(request.authToken, request.session);
         if (canceled) return;
         useManifestStore.getState().setReady(request.requestId, result);
         onComplete({ capability: "manifest", outcome: "completed", requestId: request.requestId, result, session: request.session });
       } catch (error) {
-        if (!canceled) fail("status", error, "Manifest checkStatus failed");
+        if (!canceled) fail(operation, error, prefix);
       }
     })();
     return () => {
