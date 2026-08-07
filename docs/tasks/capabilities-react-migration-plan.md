@@ -161,8 +161,8 @@ Define the following contract in
 
 ```ts
 import type {
-  IndexMetadataCallbacks,
-  IndexSegmentValues,
+  MetdataMetadataCallbacks,
+  MetdataSegmentValues,
   MetadataPayload,
 } from "aurorra-index";
 
@@ -309,7 +309,7 @@ export type CapabilityTerminal =
   | CapabilityFailed<"manifest", ManifestOperation>;
 
 export type MetadataCapabilityCallbacks = Pick<
-  IndexMetadataCallbacks,
+  MetdataMetadataCallbacks,
   "onAddressClick" | "onLegalView" | "onPageClick"
 >;
 
@@ -333,7 +333,7 @@ export const CAPABILITY_SHORTCUTS = [
   { key: "s", segment: "TRANSACTION" },
 ] as const satisfies ReadonlyArray<{
   key: string;
-  segment: keyof IndexSegmentValues;
+  segment: keyof MetdataSegmentValues;
 }>;
 
 export type CapabilityPoll = {
@@ -383,7 +383,7 @@ export type ComputePanelProps = {
   ) => void;
   onError: (failure: ComputeFailure) => void;
   request: ComputeRequest;
-  segments: IndexSegmentValues;
+  segments: MetdataSegmentValues;
   workerClient?: ComputeWorkerClient;
 };
 
@@ -394,7 +394,7 @@ export type CompositionPanelProps = {
   ) => void;
   onError: (failure: CompositionFailure) => void;
   request: CompositionRequest;
-  segments: IndexSegmentValues;
+  segments: MetdataSegmentValues;
   workerClient?: CompositionWorkerClient;
 };
 

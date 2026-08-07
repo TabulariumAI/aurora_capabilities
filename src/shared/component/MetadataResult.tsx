@@ -1,6 +1,6 @@
 import { getPanelData, MetadataPanel } from "aurorra-index";
 import type { JSX } from "react";
-import type { IndexSegmentValues, MetadataPayload } from "aurorra-index";
+import type { MetdataSegmentValues, MetadataPayload } from "aurorra-index";
 import type { CapabilityStatus, MetadataCapabilityCallbacks } from "../type/capability.types";
 import { capabilityStyles } from "../style/capabilityStyles";
 
@@ -28,7 +28,7 @@ export function MetadataResult({
   hiddenSegments: ReadonlySet<string>;
   metadata: MetadataPayload | "";
   openSegment: string | null;
-  segments: IndexSegmentValues;
+  segments: MetdataSegmentValues;
   session: string;
   setOpenSegment(segment: string): void;
   shortcuts: ReadonlyMap<string, string>;
