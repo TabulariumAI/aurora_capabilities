@@ -24,8 +24,7 @@ export default defineConfig({
       "@radix-ui/react-tooltip": path.resolve(rootDir, "node_modules/@radix-ui/react-tooltip"),
       "@radix-ui/react-use-callback-ref": path.resolve(rootDir, "node_modules/@radix-ui/react-use-callback-ref"),
       "@radix-ui/react-use-layout-effect": path.resolve(rootDir, "node_modules/@radix-ui/react-use-layout-effect"),
-      "aurorra-index": fileURLToPath(new URL("../aurorra_index/src/public-api.ts", import.meta.url)),
-      "aurorra-ui": fileURLToPath(new URL("../aurorra_ui/src/public-api.ts", import.meta.url))
+      "aurorra-index": fileURLToPath(new URL("../aurorra_index/src/public-api.ts", import.meta.url))
     },
     dedupe: ["react", "react-dom", "@radix-ui/react-checkbox", "@radix-ui/react-collapsible", "@radix-ui/react-context", "@radix-ui/react-popover", "@radix-ui/react-scroll-area", "@radix-ui/react-tooltip"],
     preserveSymlinks: true

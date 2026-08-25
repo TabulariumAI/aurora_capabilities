@@ -18,11 +18,10 @@ export { createCompositionWorkerClient } from "./features/composition/worker/com
 export { createRecordWorkerClient } from "./features/record/worker/recordWorkerClient";
 export { createRedactWorkerClient } from "./features/redact/worker/redactWorkerClient";
 export { createManifestWorkerClient } from "./features/manifest/worker/manifestWorkerClient";
-export { prepareRecordMetadata, validateRecordResult, getRecordSummaryItems } from "./features/record/data/recordData";
-export { CAPABILITY_SHORTCUTS } from "./shared/type/capability.types";
+export { prepareRecordMetadata } from "./features/record/data/recordData";
+export { useCapabilityDataStore } from "./shared/worker/capabilityData";
+export { CAPABILITY_SHORTCUTS, COMPOSITION_SEGMENTS, COMPOSITION_SHORTCUTS } from "./shared/type/capability.types";
 export type * from "./shared/type/capability.types";
 export type * from "./features/compute/type/compute.types";
 export type * from "./features/composition/type/composition.types";
-export type * from "./features/record/type/record.types";
-export type * from "./features/redact/type/redact.types";
 export type * from "./features/manifest/type/manifest.types";

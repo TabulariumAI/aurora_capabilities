@@ -1,63 +1,88 @@
 import { createRoot } from "react-dom/client";
-import { RecordPanel, RedactPanel, ManifestPanel } from "../src/public-api";
+import type { CSSProperties } from "react";
+import { CompositionPanel, ComputePanel, ManifestPanel, RecordPanel, RedactPanel } from "../src/public-api";
+import { ProgressView } from "../src/features/progressview/component/ProgressView";
 
+const params = new URLSearchParams(window.location.search);
+const capability = params.get("capability");
+const state = params.get("state");
+if (capability !== "compute" && capability !== "composition" && capability !== "record" && capability !== "redact" && capability !== "manifest" && capability !== "progress") {
+  throw new Error("A valid capability is required.");
+}
+if (state !== "ready" && state !== "pending" && state !== "failed" && state !== "data-failed") {
+  throw new Error("A valid capability state is required.");
+}
 const requestBase = {
   authToken: "token",
   documentApiGatewayUrl: "https://example.test",
   intervalMs: 4000,
-  requestId: "visual-request",
+  requestId: `visual-${capability}-${state}`,
   session: "visual-session",
 };
+const segments = {
+  ACKNOWLEDGMENT: "acknowledgment",
+  COURT: "court",
+  ENDORSEMENT: "endorsement",
+  FEE: "fee",
+  FEEFACTOR: "factor",
+  FUND: "fund",
+  LEGAL: "legal",
+  MONETARY: "monetary",
+  PAGE: "page",
+  PARTY: "party",
+  PROPERTY: "property",
+  REFERENCE: "reference",
+  SECRETS: "secrets",
+  TITLE: "title",
+  TRANSACTION: "transaction",
+  VITAL: "vital",
+};
+let checks = 0;
 
-function App() {
-  return (
-    <main style={{ padding: "2rem", display: "grid", gap: "2rem" }}>
-      <RecordPanel
-        request={{ ...requestBase, capability: "record", document: "visual.pdf" }}
-        workerClient={{
-          status: async () => ({ data: null, status: "completed" }),
-          computeData: async () => ({ heading: { class: "deed", title: "Visual" } }),
-          submit: async () => ({ data: null, status: "completed" }),
-          data: async () => ({
-            cover: "cover.pdf",
-            document: "record.pdf",
-            heading: { class: "deed", title: "Seeded Recording", number: "12345", date: "2026-07-26", total: 125 },
-            queueId: "record-queue-1",
-            status: "Completed",
-          }),
-        }}
-        onComplete={() => undefined}
-        onDownloadCover={async () => undefined}
-        onDownloadDocument={async () => undefined}
-        onError={() => undefined}
-        onReadyChange={() => undefined}
-      />
-      <RedactPanel
-        request={{ ...requestBase, capability: "redact", document: "visual.pdf", requestId: "visual-redact" }}
-        workerClient={{
-          status: async () => ({ data: null, status: "completed" }),
-          submit: async () => ({ data: null, status: "completed" }),
-          data: async () => ({ pdf: "redacted.pdf" }),
-        }}
-        onComplete={() => undefined}
-        onDownloadPdf={async () => undefined}
-        onError={() => undefined}
-        onReadyChange={() => undefined}
-      />
-      <ManifestPanel
-        request={{ ...requestBase, capability: "manifest", requestId: "visual-manifest" }}
-        workerClient={{
-          status: async () => ({ data: null, status: "completed" }),
-          submit: async () => ({ data: null, status: "completed" }),
-          data: async () => ({ pdf: "https://example.test/manifest.pdf" }),
-        }}
-        onComplete={() => undefined}
-        onDownloadPdf={async () => undefined}
-        onError={() => undefined}
-        onReadyChange={() => undefined}
-      />
-    </main>
-  );
+async function status() {
+  checks += 1;
+  if (state === "failed") return { data: "No secrets found to redact", status: "error" as const };
+  if (state === "data-failed" && checks === 1) return { data: null, status: "processing" as const };
+  if (state === "pending") return { data: null, status: "processing" as const };
+  if (capability === "manifest" && checks === 1) return { data: null, status: "processing" as const };
+  return { data: null, status: "completed" as const };
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+function App() {
+  if (capability === "progress") {
+    return (
+      <ProgressView
+        fillCompletion={false}
+        intro="I’ll keep you updated as I generate the manifest."
+        jobs={Array.from({ length: 20 }, (_, index) => ({
+          jobId: `progress-${index}`,
+          message: `Progress ${index + 1}`,
+          phase: index === 19 ? "started" as const : "completed" as const,
+        }))}
+        process="GENERATING THE INDEX MANIFEST"
+      />
+    );
+  }
+  if (capability === "compute") {
+    return <ComputePanel callbacks={{}} request={{ ...requestBase, capability }} segments={segments} workerClient={{ status, submit: async () => ({ data: null, status: "completed" }), data: async () => ({ fee_factors: [{ amount: "4", name: "Page count" }], fees: [{ amount: "125", formula: "base + pages", name: "Recording fee" }], funds: [{ amount: "75", formula: "flat", name: "General fund" }], heading: { class: "deed", title: "Visual" } }) }} onComplete={() => undefined} onEndorse={() => undefined} onError={() => undefined} />;
+  }
+  if (capability === "composition") {
+    return <CompositionPanel callbacks={{}} request={{ ...requestBase, capability }} workerClient={{ status, submit: async () => ({ data: null, status: "completed" }), data: async () => ({ chain: [{ class: "deed", required: "YES", role: "vesting", title: "Grant Deed" }], history: { conveyance: [{ date: "2025-01-02", grantees: "Alice", grantors: "Bob" }], encumbrance: [], mortgage: [{ borrowers: "Alice", lender: "Citywide Bank" }] } }), options: async () => ["10 Main Street", "APN-123"] }} onComplete={() => undefined} onError={() => undefined} onLinkBatch={async (name) => ({ code: "batch-1", id: "batch-1", name })} onViewBatch={() => undefined} />;
+  }
+  if (capability === "record") {
+    return <RecordPanel request={{ ...requestBase, capability, document: "visual.pdf" }} workerClient={{ status, computeData: async () => ({ heading: { class: "deed", title: "Visual" } }), submit: async () => ({ data: null, status: "completed" }), data: async () => ({ pdf_confirmation: "https://storage.test/subscription/visual-session/confirmation.pdf?sig=token", pdf_record: "https://storage.test/subscription/visual-session/record.pdf?sig=token", tiff_record: "https://storage.test/subscription/visual-session/record.tiff?sig=token" }) }} onComplete={() => undefined} onError={() => undefined} />;
+  }
+  if (capability === "redact") {
+    return <RedactPanel request={{ ...requestBase, capability, document: "visual.pdf", intervalMs: 0 }} workerClient={{ status, submit: async () => ({ data: null, status: "completed" }), data: async () => {
+      if (state === "data-failed") throw { code: "RETRIEVE_METADATA_FAILED", error: "Retrieve metadata failed." };
+      return { pdf: "https://storage.test/subscription/visual-session/redacted.pdf?sig=token" };
+    } }} onComplete={() => undefined} onError={() => undefined} />;
+  }
+  return <ManifestPanel request={{ ...requestBase, capability: "manifest" }} workerClient={{ status, submit: async () => ({ data: null, status: "processing" }), data: async () => ({ pdf: "https://storage.test/subscription/visual-session/manifest.pdf?sig=token" }) }} onComplete={() => undefined} onError={() => undefined} />;
+}
+
+createRoot(document.getElementById("root")!).render(
+  <main style={{ "--panel-content-padding": "1rem", display: "flex", height: "100vh" } as CSSProperties}>
+    <App />
+  </main>,
+);

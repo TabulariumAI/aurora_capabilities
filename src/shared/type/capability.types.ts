@@ -26,43 +26,29 @@ export type CapabilityError = {
 };
 
 export type ComputeOperation = "submit" | "status" | "data";
-export type CompositionOperation = "submit" | "status" | "data";
+export type CompositionOperation = "submit" | "status" | "data" | "options";
 export type RecordOperation = "status" | "compute-data" | "submit" | "data";
 export type RedactOperation = "status" | "submit" | "data";
 export type ManifestOperation = "status" | "submit" | "data";
 
 export type ComputeResult = MetadataPayload | "";
-export type CompositionResult = MetadataPayload;
-
-export type RecordHeading = {
-  class: string;
-  title: string;
-  number?: string;
-  date?: string;
-  total?: number | null;
-  [key: string]: unknown;
+export type CompositionResult = Pick<MetadataPayload, "chain" | "history">;
+export type CompositionBatch = {
+  code: string;
+  id: string;
+  name: string;
 };
 
-export type RecordResult = {
-  heading: RecordHeading;
-  document: unknown;
-  cover: unknown;
-  status?: string;
-  queueId?: string;
-  [key: string]: unknown;
-};
+export const COMPOSITION_SEGMENTS = {
+  CHAIN: "chain",
+  HISTORY: "history",
+} as const;
 
-export type RedactResult = {
-  pdf: string;
-  tiff?: string;
-  [key: string]: unknown;
-};
+export type CapabilityData = Record<string, unknown>;
 
-export type ManifestResult = {
-  pdf: string;
-  tif?: string;
-  [key: string]: unknown;
-};
+export type RecordResult = CapabilityData;
+export type RedactResult = CapabilityData;
+export type ManifestResult = CapabilityData;
 
 export type CapabilityRequestBase = {
   authToken: string;
@@ -135,9 +121,12 @@ export type MetadataCapabilityCallbacks = Pick<
   "onAddressClick" | "onLegalView" | "onPageClick"
 >;
 
+export const COMPOSITION_SHORTCUTS = [
+  { key: "c", segment: COMPOSITION_SEGMENTS.CHAIN },
+  { key: "k", segment: COMPOSITION_SEGMENTS.HISTORY },
+] as const;
+
 export const CAPABILITY_SHORTCUTS = [
-  { key: "c", segment: "CHAIN" },
-  { key: "k", segment: "HISTORY" },
   { key: "g", segment: "FEEFACTOR" },
   { key: "b", segment: "FEE" },
   { key: "u", segment: "FUND" },
@@ -173,6 +162,7 @@ export type CompositionWorkerClient = {
   submit(token: string, session: string): Promise<CapabilityPoll>;
   status(token: string, session: string): Promise<CapabilityPoll>;
   data(token: string, session: string): Promise<CompositionResult>;
+  options(token: string, session: string): Promise<string[]>;
 };
 
 export type RecordWorkerClient = {
@@ -197,8 +187,8 @@ export type ManifestWorkerClient = {
 export type ComputePanelProps = {
   callbacks: MetadataCapabilityCallbacks;
   onComplete: (terminal: CapabilityComplete<"compute", ComputeResult>) => void;
+  onEndorse: () => void;
   onError: (failure: ComputeFailure) => void;
-  onReadyChange(ready: boolean): void;
   request: ComputeRequest;
   segments: MetdataSegmentValues;
   workerClient?: ComputeWorkerClient;
@@ -208,39 +198,29 @@ export type CompositionPanelProps = {
   callbacks: MetadataCapabilityCallbacks;
   onComplete: (terminal: CapabilityComplete<"composition", CompositionResult>) => void;
   onError: (failure: CompositionFailure) => void;
-  onReadyChange(ready: boolean): void;
+  onLinkBatch: (name: string) => Promise<CompositionBatch | null>;
+  onViewBatch: (batch: CompositionBatch) => void;
   request: CompositionRequest;
-  segments: MetdataSegmentValues;
   workerClient?: CompositionWorkerClient;
 };
 
 export type RecordPanelProps = {
   onComplete: (terminal: CapabilityComplete<"record", RecordResult>) => void;
-  onDownloadCover: (blobName: unknown) => Promise<void>;
-  onDownloadDocument: (blobName: unknown) => Promise<void>;
   onError: (failure: RecordFailure) => void;
-  onLoaderChange?(lines: readonly string[] | null): void;
-  onReadyChange(ready: boolean): void;
   request: RecordRequest;
   workerClient?: RecordWorkerClient;
 };
 
 export type RedactPanelProps = {
   onComplete: (terminal: CapabilityComplete<"redact", RedactResult>) => void;
-  onDownloadPdf: (blobName: string) => Promise<void>;
   onError: (failure: RedactFailure) => void;
-  onLoaderChange?(lines: readonly string[] | null): void;
-  onReadyChange(ready: boolean): void;
   request: RedactRequest;
   workerClient?: RedactWorkerClient;
 };
 
 export type ManifestPanelProps = {
   onComplete: (terminal: CapabilityComplete<"manifest", ManifestResult>) => void;
-  onDownloadPdf: (pdfUrl: string) => Promise<void>;
   onError: (failure: ManifestFailure) => void;
-  onLoaderChange?(lines: readonly string[] | null): void;
-  onReadyChange(ready: boolean): void;
   request: ManifestRequest;
   workerClient?: ManifestWorkerClient;
 };

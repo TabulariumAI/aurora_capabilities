@@ -1,30 +1,44 @@
-import { useEffect, useMemo, type JSX } from "react";
-import { MetadataResult } from "../../../shared/component/MetadataResult";
-import { CAPABILITY_SHORTCUTS, type CompositionPanelProps } from "../../../shared/type/capability.types";
+import { useMemo, type JSX } from "react";
+import { ProgressView } from "../../progressview/component/ProgressView";
+import { useProgress } from "../../progressview/hook/useProgress";
+import { COMPOSITION_SHORTCUTS, type CompositionPanelProps, type CompositionResult } from "../../../shared/type/capability.types";
+import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
+import { CompositionView } from "./CompositionView";
 import { useComposition } from "../hook/useComposition";
 import { useCompositionStore } from "../store/compositionStore";
 
 export function CompositionPanel(props: CompositionPanelProps): JSX.Element {
-  useComposition(props);
+  const progress = useProgress(props.request.requestId);
+  const workerClient = useComposition({ ...props, onProgress: progress.receive });
   const store = useCompositionStore();
-  const shortcutMap = useMemo(() => new Map(CAPABILITY_SHORTCUTS.map(({ key, segment }) => [props.segments[segment], key])), [props.segments]);
+  const result = useCapabilityDataStore((state) => state.getData("composition", props.request.session)) as CompositionResult | null;
+  const shortcutMap = useMemo(() => new Map(COMPOSITION_SHORTCUTS.map(({ key, segment }) => [segment, key])), []);
 
-  useEffect(() => {
-    props.onReadyChange(store.status !== "idle" && store.status !== "loading");
-  }, [props.onReadyChange, store.status]);
+  if (store.status === "ready" && result != null) {
+    return (
+      <CompositionView
+        callbacks={props.callbacks}
+        metadata={result}
+        onError={props.onError}
+        onLinkBatch={props.onLinkBatch}
+        onViewBatch={props.onViewBatch}
+        openSegment={store.openSegment}
+        requestId={props.request.requestId}
+        session={props.request.session}
+        setOpenSegment={useCompositionStore.getState().setOpenSegment}
+        shortcuts={shortcutMap}
+        token={props.request.authToken}
+        workerClient={workerClient}
+      />
+    );
+  }
 
-  if (store.status !== "ready" || store.result == null) return <></>;
   return (
-    <MetadataResult
-      callbacks={props.callbacks}
-      hiddenSegments={new Set([props.segments.FEEFACTOR, props.segments.FEE, props.segments.FUND])}
-      metadata={store.result}
-      openSegment={store.openSegment}
-      segments={props.segments}
-      session={props.request.session}
-      setOpenSegment={useCompositionStore.getState().setOpenSegment}
-      shortcuts={shortcutMap}
-      status={store.status}
+    <ProgressView
+      fillCompletion={false}
+      intro="I’ll keep you updated while I compose the document and prepare its metadata."
+      jobs={progress.jobs}
+      process="COMPOSING DOCUMENT METADATA"
     />
   );
 }

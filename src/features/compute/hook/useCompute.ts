@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from "react";
+import type { ProgressEvent } from "../../progressview/type/progress.types";
 import { workerError } from "../../../shared/worker/capabilityHttp";
+import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 import type { ComputeFailure, ComputePanelProps } from "../../../shared/type/capability.types";
 import { useComputeStore } from "../store/computeStore";
 import { createComputeWorkerClient } from "../worker/computeWorkerClient";
@@ -8,14 +10,17 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isComplete = (status: unknown) => status === "completed";
 const isFailed = (status: unknown) => status === "error";
 
-export function useCompute({ onComplete, onError, request, workerClient }: Pick<ComputePanelProps, "onComplete" | "onError" | "request" | "workerClient">) {
+export function useCompute({ onComplete, onError, onProgress, request, segments, workerClient }: Pick<ComputePanelProps, "onComplete" | "onError" | "request" | "segments" | "workerClient"> & { onProgress(event: ProgressEvent): void }) {
   const client = useMemo(() => workerClient ?? createComputeWorkerClient({ apiBaseUrl: request.documentApiGatewayUrl }), [request.documentApiGatewayUrl, workerClient]);
 
   useEffect(() => {
-    useComputeStore.getState().open(request, "fee");
+    useComputeStore.getState().open(request, segments.FEE);
     if (!useComputeStore.getState().setRunning(request.requestId)) return;
     let canceled = false;
     let operation: ComputeFailure["operation"] = "submit";
+    let progressId = "start";
+    let message = "Starting fee calculation...";
+    onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
 
     const fail = (operation: ComputeFailure["operation"], error: unknown) => {
       const failure: ComputeFailure = {
@@ -26,6 +31,7 @@ export function useCompute({ onComplete, onError, request, workerClient }: Pick<
         session: request.session,
       };
       useComputeStore.getState().setError(failure);
+      onProgress({ error: failure.error.error, jobId: `${request.requestId}-${progressId}`, message, phase: "failed" });
       onError(failure);
     };
 
@@ -34,11 +40,17 @@ export function useCompute({ onComplete, onError, request, workerClient }: Pick<
         let response = await client.submit(request.authToken, request.session);
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
         operation = "status";
+        progressId = "status";
+        message = "Checking fee calculation progress...";
+        onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
         response = await client.status(request.authToken, request.session);
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
         let complete = isComplete(response.status);
         if (!complete) {
           operation = "submit";
+          progressId = "calculating";
+          message = "Calculating document fees...";
+          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
           response = await client.submit(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
           for (let attempt = 0; !complete && attempt < 27; attempt += 1) {
@@ -51,17 +63,24 @@ export function useCompute({ onComplete, onError, request, workerClient }: Pick<
         }
         if (!complete) throw { code: "COMPUTE_TIMEOUT", error: "Compute timed out." };
         operation = "data";
+        progressId = "details";
+        message = "Preparing fee details...";
+        onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
         const result = await client.data(request.authToken, request.session);
         if (canceled) return;
-        useComputeStore.getState().setReady(request.requestId, result);
+        onProgress({ jobId: `${request.requestId}-complete`, message: "Fee calculation complete.", phase: "started" });
+        onProgress({ jobId: `${request.requestId}-complete`, message: "Fee calculation complete.", phase: "completed" });
+        useCapabilityDataStore.getState().setData("compute", request.session, result);
+        useComputeStore.getState().setReady(request.requestId);
         onComplete({ capability: "compute", outcome: "completed", requestId: request.requestId, result, session: request.session });
       } catch (error) {
-        if (!canceled) fail(operation, error);
+        if (canceled) return;
+        fail(operation, error);
       }
     })();
 
     return () => {
       canceled = true;
     };
-  }, [client, onComplete, onError, request]);
+  }, [client, onComplete, onError, onProgress, request, segments.FEE]);
 }

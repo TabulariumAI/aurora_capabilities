@@ -1,75 +1,55 @@
-import * as ScrollArea from "@radix-ui/react-scroll-area";
-import { useEffect, type JSX } from "react";
-import { DeliveryNotice } from "../../../shared/component/DeliveryNotice";
-import { useLoadingMessages } from "../../../shared/hook/useLoadingMessages";
+import type { JSX } from "react";
+import { DownloadButton } from "../../../shared/component/DownloadButton";
 import { capabilityStyles } from "../../../shared/style/capabilityStyles";
 import type { RecordPanelProps } from "../../../shared/type/capability.types";
-import { getRecordSummaryItems } from "../data/recordData";
+import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
+import { ProgressView } from "../../progressview/component/ProgressView";
+import { useProgress } from "../../progressview/hook/useProgress";
 import { useRecord } from "../hook/useRecord";
 import { useRecordStore } from "../store/recordStore";
 
-const loadingMessages = [
-  "Retrieving Indexes...",
-  "Analyzing Indexing...",
-  "Generating Endorsement page...",
-  "Annotating Pages...",
-  "Annotating Pages...",
-  "Retrieving Recording...",
-  "Retrieving Recording...",
-];
-
 export function RecordPanel(props: RecordPanelProps): JSX.Element {
-  useRecord(props);
+  const progress = useProgress(props.request.requestId);
+  useRecord({ ...props, onProgress: progress.receive });
   const store = useRecordStore();
-  const loading = store.status === "idle" || store.status === "loading";
-  const message = useLoadingMessages(loadingMessages, props.request.intervalMs, loading);
+  const data = useCapabilityDataStore((state) => state.getData("record", props.request.session));
+  const record = data && typeof data === "object" ? data as Record<string, unknown> : null;
+  const document = typeof record?.pdf_record === "string" ? record.pdf_record : null;
+  const cover = typeof record?.pdf_confirmation === "string" ? record.pdf_confirmation : null;
 
-  useEffect(() => {
-    props.onReadyChange(store.status !== "idle" && store.status !== "loading");
-  }, [props.onReadyChange, store.status]);
-
-  useEffect(() => {
-    props.onLoaderChange?.(message ? [message] : null);
-  }, [message, props.onLoaderChange]);
-
-  if (store.status !== "ready" || !store.result) return <></>;
-  const result = store.result;
-  const items = getRecordSummaryItems(props.request.session, result, result.heading);
-  const runDelivery = async (target: "document" | "cover") => {
-    const isDocument = target === "document";
-    useRecordStore.getState().setDelivery(target, isDocument ? "Downloading recorded document" : "Preparing cover page (receipt)...");
-    try {
-      await (isDocument ? props.onDownloadDocument(result.document) : props.onDownloadCover(result.cover));
-      useRecordStore.getState().setDelivery(null, isDocument ? "Recorded document downloaded" : "Cover page (receipt) downloaded.");
-    } catch {
-      useRecordStore.getState().setDelivery(null, isDocument ? "Failed to download recorded document" : "Failed to download cover page (receipt).", "error");
-    }
-  };
   return (
-    <div style={capabilityStyles.recordWrap}>
-      <div style={capabilityStyles.recordTitle}>Recording Summary</div>
-      <div style={capabilityStyles.recordContent}>
-        <ScrollArea.Root style={{ width: "100%" }}>
-          <ScrollArea.Viewport style={{ width: "100%" }}>
-            <div className="rv-summary-grid" style={capabilityStyles.recordGrid}>
-              {items.map(([label, value]) => (
-                <div key={label} style={capabilityStyles.recordTile}>
-                  <div style={capabilityStyles.recordLabel}>{label}</div>
-                  <div style={capabilityStyles.recordValue}>{value === "" ? "-" : value}</div>
-                </div>
-              ))}
-            </div>
-          </ScrollArea.Viewport>
-          <ScrollArea.Scrollbar orientation="vertical" />
-        </ScrollArea.Root>
-        <style>{"@media(max-width: 35rem){.rv-summary-grid{grid-template-columns:1fr!important}}"}</style>
-        <div style={capabilityStyles.recordActions}>
-          <a href="#!" style={capabilityStyles.linkAction(store.delivering === "document")} onClick={(event) => { event.preventDefault(); void runDelivery("document"); }}>Recorded Document</a>
-          <span style={{ opacity: 0.55, userSelect: "none", margin: "0 0.25rem" }}>|</span>
-          <a href="#!" style={capabilityStyles.linkAction(store.delivering === "cover")} onClick={(event) => { event.preventDefault(); void runDelivery("cover"); }}>Cover Page (Receipt)</a>
-        </div>
-        <DeliveryNotice kind={store.deliveryKind} message={store.deliveryNotice} />
-      </div>
-    </div>
+    <ProgressView
+      completion={store.status === "ready" && (document || cover) ? (
+        <section aria-label="Recording actions" style={capabilityStyles.recordWrap}>
+          <div aria-label="Recording actions" role="group" style={capabilityStyles.recordActions}>
+            {document ? <DownloadButton disabled={store.delivering !== null} label="Recorded Document" onError={(error) => {
+              useRecordStore.getState().setDelivering(null);
+              progress.receive({ error, jobId: `${props.request.requestId}-record-download`, message: "Recorded document download failed.", phase: "failed" });
+            }} onStart={() => {
+              useRecordStore.getState().setDelivering("document");
+              progress.receive({ jobId: `${props.request.requestId}-record-download`, message: "Downloading recorded document", phase: "started" });
+            }} onSuccess={() => {
+              useRecordStore.getState().setDelivering(null);
+              progress.receive({ jobId: `${props.request.requestId}-record-download`, message: "Recorded document downloaded", phase: "completed" });
+            }} url={document} /> : null}
+            {cover ? <DownloadButton disabled={store.delivering !== null} label="Cover Page (Receipt)" onError={(error) => {
+              useRecordStore.getState().setDelivering(null);
+              progress.receive({ error, jobId: `${props.request.requestId}-cover-download`, message: "Cover page (receipt) download failed.", phase: "failed" });
+            }} onStart={() => {
+              useRecordStore.getState().setDelivering("cover");
+              progress.receive({ jobId: `${props.request.requestId}-cover-download`, message: "Downloading cover page (receipt)...", phase: "started" });
+            }} onSuccess={() => {
+              useRecordStore.getState().setDelivering(null);
+              progress.receive({ jobId: `${props.request.requestId}-cover-download`, message: "Cover page (receipt) downloaded.", phase: "completed" });
+            }} url={cover} /> : null}
+          </div>
+        </section>
+      ) : undefined}
+      completionJobId={`${props.request.requestId}-complete`}
+      fillCompletion={false}
+      intro="I’ll keep you updated as I prepare your document for recording."
+      jobs={progress.jobs}
+      process="RECORDING THE DOCUMENT"
+    />
   );
 }

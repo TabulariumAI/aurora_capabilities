@@ -1,5 +1,5 @@
 import { getPanelData, MetadataPanel } from "aurorra-index";
-import type { JSX } from "react";
+import type { JSX, ReactNode } from "react";
 import type { MetdataSegmentValues, MetadataPayload } from "aurorra-index";
 import type { CapabilityStatus, MetadataCapabilityCallbacks } from "../type/capability.types";
 import { capabilityStyles } from "../style/capabilityStyles";
@@ -15,6 +15,7 @@ const statusMap = {
 
 export function MetadataResult({
   callbacks,
+  children,
   hiddenSegments,
   metadata,
   openSegment,
@@ -25,6 +26,7 @@ export function MetadataResult({
   status,
 }: {
   callbacks: MetadataCapabilityCallbacks;
+  children: ReactNode;
   hiddenSegments: ReadonlySet<string>;
   metadata: MetadataPayload | "";
   openSegment: string | null;
@@ -44,6 +46,7 @@ export function MetadataResult({
           refine: false,
           reprocess: false,
         }}
+        batch="Pending"
         callbacks={callbacks}
         choices={null}
         confirmedCodes={emptySet}
@@ -64,7 +67,9 @@ export function MetadataResult({
         }}
         shortcuts={shortcuts}
         status={statusMap[status]}
-      />
+      >
+        {children}
+      </MetadataPanel>
     </div>
   );
 }
