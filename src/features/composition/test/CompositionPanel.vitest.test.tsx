@@ -84,7 +84,7 @@ describe("CompositionPanel", () => {
     expect(screen.queryByRole("button", { name: /^Funds/i })).not.toBeInTheDocument();
     const accordion = screen.getByRole("region", { name: "Composition accordion" });
     expect(accordion).toHaveAttribute("data-panel-scroll", "true");
-    expect(accordion).toHaveStyle({ flex: "1 1 0" });
+    expect(accordion).toHaveStyle({ flex: "0 1 auto" });
     expect(capabilityStyles.compositionAccordion).toMatchObject({ padding: "0 var(--panel-content-padding)" });
     expect(capabilityStyles.composition).toMatchObject({ gap: 0, overflow: "hidden", padding: "0.75rem 0 0" });
     expect(capabilityStyles.batchActions).toMatchObject({ padding: "0.75rem var(--panel-content-padding) var(--panel-content-padding)" });
@@ -96,93 +96,47 @@ describe("CompositionPanel", () => {
     expect(screen.getByText("Lienholder LLC").closest("article")).toHaveTextContent("Type: Lien");
   });
 
-  it("shows only batch-link progress after linking the visible batch name", async () => {
-    const linked = { code: "batch-1", id: "batch-1", name: "My Batch" };
-    let completeLink!: (value: typeof linked) => void;
-    const onLinkBatch = vi.fn(() => new Promise<typeof linked>((resolve) => {
-      completeLink = resolve;
-    }));
+  it("opens batch selection with suggestions without a textbox or premature linking progress", async () => {
+    const linked = { batch: { code: "batch-1", id: "batch-1", name: "My Batch" }, group: "user" as const };
+    let resolve!: (value: typeof linked | null) => void;
+    const onLinkBatch = vi.fn(() => new Promise<typeof linked | null>((done) => { resolve = done; }));
     const onViewBatch = vi.fn();
     const options = vi.fn(async () => ["10 Main Street", "APN-123"]);
     render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={onViewBatch} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options }} />);
-    await screen.findByRole("region", { name: "Composition" });
-
-    const input = await screen.findByRole("combobox", { name: "Batch name" });
-    await waitFor(() => expect(input).toHaveValue("10 Main Street"));
-    expect(Array.from(document.querySelectorAll<HTMLOptionElement>("#composition-batch-names option"), (option) => option.value)).toEqual([
-      "10 Main Street",
-      "APN-123",
-    ]);
-    expect(options).toHaveBeenCalledWith("t", "s");
+    const link = await screen.findByRole("button", { name: "Link to batch" });
+    await waitFor(() => expect(options).toHaveBeenCalledWith("t", "s"));
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    expect(link).toHaveAttribute("type", "button");
+    fireEvent.click(link);
+    expect(onLinkBatch).toHaveBeenCalledExactlyOnceWith("user", ["10 Main Street", "APN-123"]);
+    expect(screen.queryByText("Confirm")).not.toBeInTheDocument();
     expect(screen.queryByTestId("progress-view")).not.toBeInTheDocument();
-
-    fireEvent.change(input, { target: { value: "My Batch" } });
-    fireEvent.click(screen.getByRole("button", { name: "Link to batch" }));
-
-    await waitFor(() => expect(onLinkBatch).toHaveBeenCalledWith("My Batch"));
-    expect(screen.queryByRole("button", { name: "Link to batch" })).not.toBeInTheDocument();
-    const progress = screen.getByTestId("progress-view");
-    expect(progress).toHaveTextContent("LINKING DOCUMENT TO BATCH");
-    expect(progress).not.toHaveTextContent("Starting document composition...");
-    expect(screen.getByText("Linking session to batch...").closest("li")).toHaveAttribute("data-phase", "started");
-    expect(screen.queryByRole("combobox", { name: "Batch name" })).not.toBeInTheDocument();
-
-    completeLink(linked);
+    fireEvent.click(link);
+    expect(onLinkBatch).toHaveBeenCalledTimes(1);
+    resolve(linked);
     const view = await screen.findByRole("button", { name: "View batch" });
-    const completedRow = screen.getByText("Session linked to batch.").closest("li");
-    expect(completedRow).toHaveAttribute("data-phase", "completed");
-    expect(completedRow).toContainElement(view);
+    expect(screen.getByText("Session linked to batch.").closest("li")).toContainElement(view);
     expect(screen.queryByRole("group", { name: "Composition actions" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Link to batch" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("combobox", { name: "Batch name" })).not.toBeInTheDocument();
-    expect(screen.queryByText("Document linked to batch.")).not.toBeInTheDocument();
-    expect(view).toHaveStyle({ fontWeight: "600", minHeight: "2.75rem", minWidth: "10rem", padding: "0.5rem 1rem" });
-    expect(progress).toContainElement(view);
-
     fireEvent.click(view);
-
     expect(onViewBatch).toHaveBeenCalledWith(linked);
   });
 
-  it("does not report success when the session was not linked", async () => {
+  it("keeps Link available after cancelling the dialog, without reporting failure", async () => {
     const onLinkBatch = vi.fn(async () => null);
-    render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => ["10 Main Street"] }} />);
-    await screen.findByRole("region", { name: "Composition" });
-
-    await screen.findByRole("combobox", { name: "Batch name" });
-    fireEvent.click(screen.getByRole("button", { name: "Link to batch" }));
-
-    await waitFor(() => expect(onLinkBatch).toHaveBeenCalledWith("10 Main Street"));
-    expect(screen.getByText("Batch link failed.").closest("li")).toHaveAttribute("data-phase", "failed");
-    expect(screen.queryByText("Document linked to batch.")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "View batch" })).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Link to batch" })).toBeVisible();
-  });
-
-  it("shows a failed progress row when batch linking rejects", async () => {
-    render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={async () => { throw new Error("Link unavailable"); }} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => ["10 Main Street"] }} />);
-    await screen.findByRole("combobox", { name: "Batch name" });
-
-    fireEvent.click(screen.getByRole("button", { name: "Link to batch" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent("Link unavailable");
-    expect(screen.getByText("Batch link failed.").closest("li")).toHaveAttribute("data-phase", "failed");
-    expect(screen.getByRole("button", { name: "Link to batch" })).toBeEnabled();
-  });
-
-  it("allows manual entry when no recommended batch name exists", async () => {
-    const onLinkBatch = vi.fn(async (name: string) => ({ code: "batch-manual", id: "batch-manual", name }));
     render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
+    const link = await screen.findByRole("button", { name: "Link to batch" });
+    fireEvent.click(link);
+    await waitFor(() => expect(onLinkBatch).toHaveBeenCalledWith("user", []));
+    await waitFor(() => expect(link).toBeEnabled());
+    expect(screen.queryByTestId("progress-view")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "View batch" })).not.toBeInTheDocument();
+  });
 
-    const input = await screen.findByRole("combobox", { name: "Batch name" });
-    expect(input).toHaveValue("");
-    expect(input).toHaveAttribute("placeholder", "Enter batch name");
-    expect(screen.getByRole("button", { name: "Link to batch" })).toBeDisabled();
-
-    fireEvent.change(input, { target: { value: "Manual Batch" } });
-    fireEvent.click(screen.getByRole("button", { name: "Link to batch" }));
-
-    await waitFor(() => expect(onLinkBatch).toHaveBeenCalledWith("Manual Batch"));
+  it("allows retry after the host rejects batch selection", async () => {
+    render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={async () => { throw new Error("Link unavailable"); }} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Link to batch" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Link unavailable");
+    expect(screen.getByRole("button", { name: "Link to batch" })).toBeEnabled();
   });
 
   it("reports batch-name option failures through onError", async () => {

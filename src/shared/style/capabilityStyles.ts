@@ -1,24 +1,6 @@
 import type { CSSProperties } from "react";
 
 export const capabilityStyles = {
-  batchField: {
-    display: "grid",
-    fontSize: "0.88rem",
-    fontWeight: 650,
-    gap: "0.35rem",
-    width: "100%",
-  } satisfies CSSProperties,
-  batchInput: {
-    border: "1px solid var(--border-card)",
-    borderRadius: "var(--radius-control)",
-    boxSizing: "border-box",
-    color: "var(--title-ink)",
-    font: "inherit",
-    minHeight: "2.5rem",
-    minWidth: 0,
-    padding: "0.4rem 0.5rem",
-    width: "100%",
-  } satisfies CSSProperties,
   batchActions: {
     boxSizing: "border-box",
     display: "grid",
@@ -44,7 +26,7 @@ export const capabilityStyles = {
   } satisfies CSSProperties,
   compositionAccordion: {
     display: "flex",
-    flex: "1 1 0",
+    flex: "0 1 auto",
     flexDirection: "column",
     gap: "0.75rem",
     minHeight: 0,

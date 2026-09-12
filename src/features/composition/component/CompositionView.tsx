@@ -36,12 +36,11 @@ export function CompositionView({
   token: string;
   workerClient: CompositionWorkerClient;
 }): JSX.Element {
-  const [batchName, setBatchName] = useState("");
+  const [saving, setSaving] = useState(false);
   const [batchNames, setBatchNames] = useState<string[]>([]);
   const [linkedBatch, setLinkedBatch] = useState<CompositionBatch | null>(null);
   const [linkJob, setLinkJob] = useState<ProgressJob | null>(null);
   const batchJobId = `${requestId}-batch-link`;
-  const saving = linkJob?.phase === "started";
   const chain = metadata.chain ?? [];
   const history = metadata.history;
   const historyRows: Array<{
@@ -94,7 +93,6 @@ export function CompositionView({
     void workerClient.options(token, session).then((names) => {
       if (canceled) return;
       setBatchNames(names);
-      setBatchName((name) => name || names[0] || "");
     }).catch((error) => {
       if (canceled) return;
       onError({
@@ -112,14 +110,13 @@ export function CompositionView({
 
   const linkBatch = async () => {
     setLinkedBatch(null);
-    setLinkJob({ jobId: batchJobId, message: "Linking session to batch...", phase: "started" });
+    setSaving(true);
+    setLinkJob(null);
     try {
-      const batch = await onLinkBatch(batchName);
+      const batch = await onLinkBatch("user", batchNames);
       if (batch) {
         setLinkedBatch(batch);
         setLinkJob({ jobId: batchJobId, message: "Session linked to batch.", phase: "completed" });
-      } else {
-        setLinkJob({ jobId: batchJobId, message: "Batch link failed.", phase: "failed" });
       }
     } catch (error) {
       setLinkJob({
@@ -128,6 +125,8 @@ export function CompositionView({
         message: "Batch link failed.",
         phase: "failed",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -213,30 +212,14 @@ export function CompositionView({
             process="LINKING DOCUMENT TO BATCH"
           />
         ) : null}
-        {saving || linkedBatch ? null : (
+        {linkedBatch ? null : (
           <div aria-label="Composition actions" role="group" style={capabilityStyles.batchActions}>
-            <div style={capabilityStyles.batchField}>
-              <label htmlFor="composition-batch-name">Batch name</label>
-              <input
-                aria-label="Batch name"
-                id="composition-batch-name"
-                list="composition-batch-names"
-                onChange={(event) => setBatchName(event.target.value)}
-                placeholder="Enter batch name"
-                style={capabilityStyles.batchInput}
-                type="text"
-                value={batchName}
-              />
-              <datalist id="composition-batch-names">
-                {batchNames.map((name) => <option key={name} value={name} />)}
-              </datalist>
-            </div>
             <button
-              disabled={!batchName.trim()}
+              disabled={saving}
               onClick={() => void linkBatch()}
               style={{
                 ...capabilityStyles.primaryButton,
-                ...(!batchName.trim() ? capabilityStyles.disabled : {}),
+                ...(saving ? capabilityStyles.disabled : {}),
               }}
               type="button"
             >

@@ -29,11 +29,9 @@ export type ManifestOperation = "status" | "submit" | "data";
 
 export type ComputeResult = MetadataPayload | "";
 export type CompositionResult = Pick<MetadataPayload, "chain" | "history">;
-export type CompositionBatch = {
-  code: string;
-  id: string;
-  name: string;
-};
+export type CompositionBatch =
+  | { group: "user"; batch: { code: string; id: string; name: string } }
+  | { group: "sub"; batch: { name: string } };
 
 export const COMPOSITION_SEGMENTS = {
   CHAIN: "chain",
@@ -194,7 +192,7 @@ export type CompositionPanelProps = {
   callbacks: MetadataCapabilityCallbacks;
   onComplete: (terminal: CapabilityComplete<"composition", CompositionResult>) => void;
   onError: (failure: CompositionFailure) => void;
-  onLinkBatch: (name: string) => Promise<CompositionBatch | null>;
+  onLinkBatch: (group: "user", names: readonly string[]) => Promise<CompositionBatch | null>;
   onViewBatch: (batch: CompositionBatch) => void;
   request: CompositionRequest;
   workerClient?: CompositionWorkerClient;

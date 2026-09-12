@@ -56,7 +56,7 @@ test("composition renders batch-link progress below the accordion", async ({ pag
   await expect(root.getByText("Grant Deed", { exact: true })).toBeVisible();
   await history.click();
   await expect(root.getByText("Alice", { exact: true }).first()).toBeVisible();
-  await expect(root.getByRole("combobox", { name: "Batch name" })).toHaveValue("10 Main Street");
+  await expect(root.getByRole("combobox", { name: "Batch name" })).toHaveCount(0);
   const actions = root.getByRole("group", { name: "Composition actions" });
   await expect(actions.getByRole("button", { name: "Link to batch" })).toBeVisible();
   await expect.poll(async () => {
@@ -65,14 +65,11 @@ test("composition renders batch-link progress below the accordion", async ({ pag
     if (!rowBox || !actionsBox) throw new Error("Composition layout is incomplete.");
     return actionsBox.y - rowBox.y - rowBox.height;
   }).toBeGreaterThanOrEqual(12);
-  const [actionsBox, fieldBox, linkBox] = await Promise.all([
+  const [actionsBox, linkBox] = await Promise.all([
     actions.boundingBox(),
-    root.getByRole("combobox", { name: "Batch name" }).boundingBox(),
     actions.getByRole("button", { name: "Link to batch" }).boundingBox(),
   ]);
-  if (!actionsBox || !fieldBox || !linkBox) throw new Error("Composition batch controls are incomplete.");
-  expect(fieldBox.width).toBeLessThanOrEqual(512);
-  expect(linkBox.y).toBeGreaterThanOrEqual(fieldBox.y + fieldBox.height);
+  if (!actionsBox || !linkBox) throw new Error("Composition batch controls are incomplete.");
   expect(Math.abs((linkBox.x + linkBox.width / 2) - (actionsBox.x + actionsBox.width / 2))).toBeLessThanOrEqual(1);
   await actions.getByRole("button", { name: "Link to batch" }).click();
   await expect(progress.getByTestId("progress-caption")).toHaveText("LINKING DOCUMENT TO BATCH");
