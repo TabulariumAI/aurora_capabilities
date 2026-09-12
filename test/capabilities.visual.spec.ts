@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const ready = [
-  { action: "Recorded Document", capability: "record", message: "Recording complete.", process: "RECORDING THE DOCUMENT" },
+  { action: "Endorsed Document", capability: "record", message: "Recording complete.", process: "RECORDING THE DOCUMENT" },
   { action: "Download Redacted PDF", capability: "redact", message: "Redaction complete.", process: "REDACTING THE DOCUMENT" },
   { action: "Download manifest", capability: "manifest", message: "Manifest is ready to download.", process: "GENERATING THE INDEX MANIFEST" },
 ] as const;
@@ -107,7 +107,7 @@ test("compute formats fees and funds and confirms endorsement", async ({ page },
   const root = page.locator("main");
 
   await expect(root.getByTestId("progress-view")).toHaveCount(0);
-  await expect(root.getByRole("heading", { name: "Deed" })).toBeVisible();
+  await expect(root.locator("[data-metadata-context='true']")).toHaveCount(0);
   const feeFactors = root.getByRole("button", { name: "Fee Factors" });
   const fees = root.getByRole("button", { name: "Fees" });
   const funds = root.getByRole("button", { name: "Funds" });

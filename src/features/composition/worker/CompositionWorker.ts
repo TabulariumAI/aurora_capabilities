@@ -1,6 +1,6 @@
-import { getParcelOptions, type MetadataPayload } from "aurorra-index";
+import { getParcelOptions, type MetadataPayload } from "aurora-core";
 import type { CompositionResult } from "../../../shared/type/capability.types";
-import { capabilityFetch, parseCapabilityData, pollFromResponse } from "../../../shared/worker/capabilityHttp";
+import { blobJson, capabilityFetch, pollFromResponse } from "../../../shared/worker/capabilityHttp";
 
 export async function submitComposition(apiBaseUrl: string, token: string, session: string) {
   return pollFromResponse(await capabilityFetch(token, `${apiBaseUrl}/v1/composition/${session}/link`, { method: "POST" }));
@@ -10,20 +10,29 @@ export async function statusComposition(apiBaseUrl: string, token: string, sessi
   return pollFromResponse(await capabilityFetch(token, `${apiBaseUrl}/v1/composition/${session}/status`, { method: "GET" }));
 }
 
-export async function dataComposition(apiBaseUrl: string, token: string, session: string): Promise<CompositionResult> {
-  const response = await capabilityFetch(token, `${apiBaseUrl}/v1/composition/${session}/data`, { method: "GET" });
-  const parsed = parseCapabilityData(response.data);
-  if (parsed === "" || !parsed || typeof parsed !== "object") {
+async function compositionData(apiBaseUrl: string, token: string, session: string): Promise<unknown> {
+  const response = await capabilityFetch(token, `${apiBaseUrl}/v1/composition/${encodeURIComponent(session)}/data`, { method: "GET" });
+  if (response.status !== "completed") {
+    throw { code: "composition_not_completed", details: response, error: response.status };
+  }
+  if (typeof response.data !== "string" || !response.data) {
     throw { code: "parse_error", error: "Response data is not valid JSON." };
   }
-  return parsed as CompositionResult;
+  return blobJson(response.data);
+}
+
+export async function dataComposition(apiBaseUrl: string, token: string, session: string): Promise<CompositionResult> {
+  const data = await compositionData(apiBaseUrl, token, session);
+  if (!data || typeof data !== "object") {
+    throw { code: "parse_error", error: "Response data is not valid JSON." };
+  }
+  return data as CompositionResult;
 }
 
 export async function optionsComposition(apiBaseUrl: string, token: string, session: string): Promise<string[]> {
-  const response = await capabilityFetch(token, `${apiBaseUrl}/v1/index/${encodeURIComponent(session)}/data`, { method: "GET" });
-  const parsed = parseCapabilityData(response.data);
-  const metadata = parsed as MetadataPayload;
-  if (parsed === "" || !parsed || typeof parsed !== "object" || !Array.isArray(metadata.indexes)) {
+  const data = await compositionData(apiBaseUrl, token, session);
+  const metadata = data as MetadataPayload;
+  if (!data || typeof data !== "object" || !Array.isArray(metadata.indexes)) {
     throw { code: "parse_error", error: "Response data is not valid JSON." };
   }
   const parcel = getParcelOptions(metadata.indexes);

@@ -1,11 +1,5 @@
-import {
-  EmptyRow,
-  MetadataRow,
-  MetadataSegment,
-  type MetadataFeeFactor,
-  type MetadataFeeItem,
-} from "aurorra-index";
-import { useEffect, useState, type JSX } from "react";
+import { ConfButton, EmptyRow, MetadataRow, MetadataSegment, type MetadataFeeFactor, type MetadataFeeItem } from "aurora-core";
+import type { JSX } from "react";
 import { MetadataResult } from "../../../shared/component/MetadataResult";
 import { capabilityStyles } from "../../../shared/style/capabilityStyles";
 import type {
@@ -31,53 +25,6 @@ const currency = new Intl.NumberFormat("en-US", {
   currency: "USD",
   style: "currency",
 });
-const CONFIRM_TIMEOUT_MS = 4_000;
-
-function EndorseButton({ onEndorse }: { onEndorse(): void }): JSX.Element {
-  const [armed, setArmed] = useState(false);
-  const [progress, setProgress] = useState(0);
-
-  useEffect(() => {
-    if (!armed) {
-      setProgress(0);
-      return undefined;
-    }
-
-    const frame = requestAnimationFrame(() => setProgress(0));
-    const timeout = setTimeout(() => setArmed(false), CONFIRM_TIMEOUT_MS);
-    return () => {
-      cancelAnimationFrame(frame);
-      clearTimeout(timeout);
-    };
-  }, [armed]);
-
-  return (
-    <button
-      aria-label={armed ? "Confirm" : "Endorse"}
-      data-armed={armed ? "true" : "false"}
-      data-variant="primary"
-      onClick={() => {
-        if (armed) {
-          setArmed(false);
-          onEndorse();
-          return;
-        }
-        setProgress(100);
-        setArmed(true);
-      }}
-      style={{ alignItems: "center", display: "inline-flex", justifyContent: "center", overflow: "hidden", position: "relative", ...capabilityStyles.primaryButton }}
-      type="button"
-    >
-      {armed ? "Confirm" : "Endorse"}
-      {armed ? (
-        <span aria-hidden="true" data-confirm-progress="true" style={{ backgroundColor: "rgba(255, 255, 255, 0.24)", bottom: 0, height: "0.25rem", left: 0, pointerEvents: "none", position: "absolute", width: "100%" }}>
-          <span style={{ backgroundColor: "rgba(255, 255, 255, 0.78)", display: "block", height: "100%", transition: `width ${CONFIRM_TIMEOUT_MS}ms linear`, width: `${progress}%` }} />
-        </span>
-      ) : null}
-    </button>
-  );
-}
-
 function formatCurrency(amount: string): string {
   return currency.format(Number(amount.replaceAll("$", "").replaceAll(",", "")));
 }
@@ -175,7 +122,7 @@ export function ComputeDetails({
       <FiscalSegment callbacks={callbacks} currency empty="No fees found." items={payload.fees ?? []} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FEE} session={session} shortcut={shortcuts.get(segments.FEE) ?? null} title="Fees" />
       <FiscalSegment callbacks={callbacks} currency empty="No fund distributions found." items={payload.funds ?? []} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FUND} session={session} shortcut={shortcuts.get(segments.FUND) ?? null} title="Funds" />
       <div aria-label="Compute actions" role="group" style={capabilityStyles.computeActions}>
-        <EndorseButton onEndorse={onEndorse} />
+        <ConfButton label="Endorse" onConfirm={onEndorse} />
       </div>
     </MetadataResult>
   );

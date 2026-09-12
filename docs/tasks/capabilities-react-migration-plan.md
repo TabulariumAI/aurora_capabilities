@@ -8,8 +8,7 @@ Move each capability's active worker, polling, state, and rendered UI out of
 `document_web/src/domains` without changing its service routes, request bodies,
 polling limits, visible copy, workflow timing, or browser-delivery behavior.
 
-The finished package must use React 19, Zustand 5, `aurorra-ui`,
-`aurorra-index`, and Radix UI. It must expose typed React panels, typed Zustand
+The finished package must use React 19, Zustand 5, `aurora-core`, and Radix UI. It must expose typed React panels, typed Zustand
 stores, and typed worker clients through `src/public-api.ts`. It must not import
 or access `document_web`, its globals, its EventBus, its workflow, its storage,
 or browser-delivery APIs.
@@ -39,7 +38,7 @@ or browser-delivery APIs.
 | Repository | Required responsibility |
 | --- | --- |
 | `aurora_capabilities` | Own all five React feature panels, feature hooks, Zustand state, HTTP workers, polling, package tests, and package visual fixtures. |
-| `aurorra_index` | Expose the existing metadata panel as a host-independent renderer with explicit action, section, shortcut, and status inputs. |
+| `aurora_core` | Expose the existing metadata panel as a host-independent renderer with explicit action, section, shortcut, and status inputs. |
 | `document_web` | Create separate `src/features/compute`, `composition`, `record`, `redact`, and `manifest` React host features; supply runtime values and callbacks; retain workflow/event ownership; render package panels; perform alerts and browser delivery; persist record blob names; and delete the replaced legacy domains. |
 
 ## Package Baseline
@@ -90,8 +89,7 @@ Use the versions currently declared by `aurora_chat`:
 {
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.2.10",
-    "aurorra-index": "file:../aurorra_index",
-    "aurorra-ui": "file:../aurorra_ui",
+    "aurora-core": "file:../aurora_core",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zustand": "^5.0.14"
@@ -117,15 +115,14 @@ Use the versions currently declared by `aurora_chat`:
 ```
 
 Configure Vite as an ES library with `src/public-api.ts` as its entry. Resolve
-local aliases for `react`, `react-dom`, `aurorra-index`, and `aurorra-ui`,
+local aliases for `react`, `react-dom`, and `aurora-core`;
 dedupe React and ReactDOM, and preserve symlinks. Externalize:
 
 - `react`
 - `react-dom`
 - `react-dom/client`
 - `react-dom/server`
-- `aurorra-index`
-- `aurorra-ui`
+- `aurora-core`
 - `@radix-ui/react-scroll-area`
 
 Use the same aliases, dedupe list, and symlink behavior in Vitest. Run package
@@ -138,7 +135,7 @@ Configure package Playwright at viewport `1440x900` and test only
 Copy `aurora_chat/scripts/check-boundary.cjs` and adapt only its dependency
 list for this package. Keep its recursive source scan and all existing host,
 legacy, global, EventBus, alert, environment, API, and worker-helper
-prohibitions. Add `aurorra_index` as an allowed package dependency.
+prohibitions. Add `aurora_core` as an allowed package dependency.
 
 The public record/redact request contract has a property named `document`, so
 replace the refine checker's raw `/\bdocument\b/` pattern with all of:
@@ -161,10 +158,10 @@ Define the following contract in
 
 ```ts
 import type {
-  MetdataMetadataCallbacks,
-  MetdataSegmentValues,
+  MetadataCallbacks,
+  MetadataSegments,
   MetadataPayload,
-} from "aurorra-index";
+} from "aurora-core";
 
 export type CapabilityName =
   | "composition"
@@ -309,7 +306,7 @@ export type CapabilityTerminal =
   | CapabilityFailed<"manifest", ManifestOperation>;
 
 export type MetadataCapabilityCallbacks = Pick<
-  MetdataMetadataCallbacks,
+  MetadataCallbacks,
   "onAddressClick" | "onLegalView" | "onPageClick"
 >;
 
@@ -333,7 +330,7 @@ export const CAPABILITY_SHORTCUTS = [
   { key: "s", segment: "TRANSACTION" },
 ] as const satisfies ReadonlyArray<{
   key: string;
-  segment: keyof MetdataSegmentValues;
+  segment: keyof MetadataSegments;
 }>;
 
 export type CapabilityPoll = {
@@ -383,7 +380,7 @@ export type ComputePanelProps = {
   ) => void;
   onError: (failure: ComputeFailure) => void;
   request: ComputeRequest;
-  segments: MetdataSegmentValues;
+  segments: MetadataSegments;
   workerClient?: ComputeWorkerClient;
 };
 
@@ -394,7 +391,7 @@ export type CompositionPanelProps = {
   ) => void;
   onError: (failure: CompositionFailure) => void;
   request: CompositionRequest;
-  segments: MetdataSegmentValues;
+  segments: MetadataSegments;
   workerClient?: CompositionWorkerClient;
 };
 
@@ -556,7 +553,7 @@ creation, host storage access, alerts, or worker bootstrap.
 | `document_web/src/domains/manifest/svc/manifest_service.js` | `features/manifest/hook/useManifest.ts`, store, and processing tests |
 | `document_web/src/domains/manifest/shell/manifestdialog.js` | `features/manifest/component/ManifestPanel.tsx` and shared styles |
 | typing behavior in `document_web/src/domains/shared/shell/base/messagebar.js` | `shared/hook/useLoadingMessages.ts` and `CapabilityLoading.tsx` |
-| metadata section behavior in the compute/composition controllers and legacy metadata renderer | `shared/component/MetadataResult.tsx` using the exported `aurorra-index` `MetadataPanel` |
+| metadata section behavior in the compute/composition controllers and legacy metadata renderer | `shared/component/MetadataResult.tsx` using the exported `aurora-core` `MetadataPanel` |
 
 Translate the active inline visual values from the three legacy dialog files
 and their loading stacks into `shared/style/capabilityStyles.ts` without
@@ -894,29 +891,17 @@ operation fallback. Preserve HTTP and malformed-payload fields from
 
 ## React UI Contract
 
-Use `aurorra-ui` for existing application primitives and Radix ScrollArea for
+Use `aurora-core` for existing application primitives and Radix ScrollArea for
 the record summary. Keep all feature visuals package-owned. Do not create host
 DOM from the package.
 
 ### Shared loading behavior
 
-Use the existing `aurorra-ui` progress bar in continuous mode with
-`durationMs={request.intervalMs}`, `running`, and `visible`.
-
-- Compute and composition show progress only and set `showText={false}`.
-- Record, redact, and manifest show progress plus typed rotating messages.
-- The first message appears after 50 ms.
-- Each message's typing duration is
-  `450 + Math.min(900, message.length * 35)`.
-- Advance through the list at `intervalMs`.
-- When consecutive raw messages are equal, display the later message with
-  `"Still "` prepended.
-- Stop on the final message.
-- Clear all timers when the request changes or the component unmounts.
+Keep the existing package-owned `features/progressview` timeline. Core does not export a progress bar. Preserve its existing phase, message, and completion behavior and regression tests.
 
 ### Compute metadata
 
-Render the exported `aurorra-index` `MetadataPanel`.
+Render the exported `aurora-core` `MetadataPanel`.
 
 - map result `""` to `{}`; otherwise use the returned metadata object
 - pass `getPanelData(metadata)` as `panelData`
@@ -939,7 +924,7 @@ Render the exported `aurorra-index` `MetadataPanel`.
 
 ### Composition metadata
 
-Render the exported `aurorra-index` `MetadataPanel`.
+Render the exported `aurora-core` `MetadataPanel`.
 
 - pass the returned metadata and `getPanelData(metadata)`
 - pass `choices={null}`
@@ -1038,14 +1023,14 @@ Ready state:
 - show Status only when truthy
 - show Queue Id only when truthy
 - render an em dash for an empty displayed value
-- actions: `Recorded Document`, separator `|`, `Cover Page (Receipt)`
+- actions: `Endorced Document`, separator `|`, `Cover Page (Receipt)`
 - disable only the action currently delivering
 
 Delivery notices:
 
-- document start: `Downloading recorded document…`
-- document success: `Recorded document downloaded.`
-- document failure: `Failed to download recorded document.`
+- document start: `Downloading endorsed document…`
+- document success: `Endorced document downloaded.`
+- document failure: `Failed to download endorced document.`
 - cover start: `Preparing cover page (receipt)…`
 - cover success: `Cover page (receipt) downloaded.`
 - cover failure: `Failed to download cover page (receipt).`
@@ -1110,26 +1095,26 @@ The package calls the supplied callback with the direct `result.pdf` URL.
 Delivery rejection changes only the notice and leaves processing status and
 terminal state unchanged.
 
-## `aurorra_index` Prerequisite
+## Shared Metadata Prerequisite
 
 Complete this prerequisite before implementing package metadata panels.
 
 Modify:
 
-- `aurorra_index/src/features/metdata/type/metadata.types.ts`
-- `aurorra_index/src/features/metdata/component/MetadataPanel.tsx`
-- `aurorra_index/src/features/metdata/component/MetadataRows.tsx`
-- `aurorra_index/src/features/metdata/component/MetadataSegment.tsx`
+- `aurora_core/src/features/metadata/type/metadata.types.ts`
+- `aurora_core/src/features/metadata/component/MetadataPanel.tsx`
+- `aurora_core/src/features/metadata/component/MetadataRows.tsx`
+- `aurora_core/src/features/metadata/component/MetadataSegment.tsx`
 - `aurorra_index/src/features/indexing/component/IndexContainer.tsx`
-- `aurorra_index/src/public-api.ts`
-- `aurorra_index/src/features/metdata/test/metadata-visual.vitest.test.tsx`
-- `aurorra_index/src/features/metdata/test/MetadataPanel.addressmap.vitest.test.tsx`
-- `aurorra_index/src/features/metdata/test/MetadataPanel.legalmap.vitest.test.tsx`
+- `aurora_core/src/public-api.ts`
+- `aurorra_index/src/features/metdataview/test/metadata-visual.vitest.test.tsx`
+- `aurorra_index/src/features/metdataview/test/MetadataPanel.addressmap.vitest.test.tsx`
+- `aurorra_index/src/features/metdataview/test/MetadataPanel.legalmap.vitest.test.tsx`
 - `aurorra_index/src/features/indexing/test/IndexContainer.vitest.test.tsx`
 
 Add:
 
-- `aurorra_index/src/features/metdata/test/MetadataPanel.capability.vitest.test.tsx`
+- `aurorra_index/src/features/metdataview/test/MetadataPanel.capability.vitest.test.tsx`
 
 Export `MetadataPanel` and `MetadataPanelProps` from `src/public-api.ts`.
 
@@ -1370,7 +1355,7 @@ animation only in the visual fixture. Snapshot every listed state.
 
 ## Implementation Order
 
-1. Complete and validate the `aurorra_index` prerequisite.
+1. Complete and validate the `aurora_core` prerequisite.
 2. Create package root configuration and boundary checker.
 3. Implement shared types and HTTP handling.
 4. Implement compute worker, store, hook, panel, and tests.
@@ -1386,15 +1371,15 @@ animation only in the visual fixture. Snapshot every listed state.
 
 ## Validation
 
-Run in `aurorra_index`:
+Run in `aurora_core`:
 
 ```powershell
 npm run typecheck
-npm run lint:boundary
 npm run test:vitest
-npm run test:visual
 npm run build
 ```
+
+Run the existing index integration and visual suites in `aurorra_index`, and the dependency-boundary and Edge suites in `document_web`.
 
 Run in `aurora_capabilities`:
 

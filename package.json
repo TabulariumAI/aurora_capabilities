@@ -22,7 +22,7 @@
   "dependencies": {
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-tooltip": "^1.2.16",
-    "aurorra-index": "file:../aurorra_index",
+    "aurora-core": "file:../aurora_core",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "zustand": "^5.0.14"

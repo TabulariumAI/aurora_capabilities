@@ -1,8 +1,4 @@
-import type {
-  MetdataMetadataCallbacks,
-  MetdataSegmentValues,
-  MetadataPayload,
-} from "aurorra-index";
+import type { MetadataCallbacks, MetadataSegments, MetadataPayload } from "aurora-core";
 
 export type CapabilityName =
   | "composition"
@@ -117,7 +113,7 @@ export type CapabilityTerminal =
   | CapabilityFailed<"manifest", ManifestOperation>;
 
 export type MetadataCapabilityCallbacks = Pick<
-  MetdataMetadataCallbacks,
+  MetadataCallbacks,
   "onAddressClick" | "onLegalView" | "onPageClick"
 >;
 
@@ -144,7 +140,7 @@ export const CAPABILITY_SHORTCUTS = [
   { key: "s", segment: "TRANSACTION" },
 ] as const satisfies ReadonlyArray<{
   key: string;
-  segment: keyof MetdataSegmentValues;
+  segment: keyof MetadataSegments;
 }>;
 
 export type CapabilityPoll = {
@@ -190,7 +186,7 @@ export type ComputePanelProps = {
   onEndorse: () => void;
   onError: (failure: ComputeFailure) => void;
   request: ComputeRequest;
-  segments: MetdataSegmentValues;
+  segments: MetadataSegments;
   workerClient?: ComputeWorkerClient;
 };
 

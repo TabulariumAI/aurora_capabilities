@@ -1,9 +1,4 @@
-import {
-  EmptyRow,
-  MetadataRow,
-  MetadataSegment,
-  type MetadataDetail,
-} from "aurorra-index";
+import { EmptyRow, MetadataRow, MetadataSegment, type MetadataDetail } from "aurora-core";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { useEffect, useState, type JSX } from "react";
 import { capabilityStyles } from "../../../shared/style/capabilityStyles";
@@ -139,7 +134,7 @@ export function CompositionView({
   return (
     <Tooltip.Provider delayDuration={250}>
       <section aria-label="Composition" style={capabilityStyles.composition}>
-        <div aria-label="Composition accordion" role="region" style={capabilityStyles.compositionAccordion}>
+        <div aria-label="Composition accordion" data-panel-scroll="true" role="region" style={capabilityStyles.compositionAccordion}>
         <MetadataSegment
           count={chain.length}
           onOpenChange={(open) => {

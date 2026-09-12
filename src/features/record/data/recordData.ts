@@ -1,4 +1,4 @@
-import type { MetadataPayload } from "aurorra-index";
+import type { MetadataPayload } from "aurora-core";
 
 export function prepareRecordMetadata(metadata: MetadataPayload): MetadataPayload {
   if (!metadata || typeof metadata !== "object" || !metadata.heading || typeof metadata.heading !== "object") {

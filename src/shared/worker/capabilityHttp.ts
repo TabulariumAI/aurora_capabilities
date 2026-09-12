@@ -64,6 +64,26 @@ export async function capabilityFetch(
   return payload;
 }
 
+export async function blobJson(url: string): Promise<unknown> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw {
+      code: "server_error",
+      error: `HTTP ${response.status} ${response.statusText}`,
+      status: response.status,
+    } satisfies CapabilityError;
+  }
+  try {
+    return await response.json();
+  } catch {
+    throw {
+      code: "parse_error",
+      error: "Azure Blob response is not valid JSON.",
+      status: response.status,
+    } satisfies CapabilityError;
+  }
+}
+
 export function pollFromResponse(response: RawResponse): CapabilityPoll {
   return {
     data: response.data,

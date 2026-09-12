@@ -73,6 +73,7 @@ describe("useCompute", () => {
     }));
 
     await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "data" })));
+    expect(useCapabilityDataStore.getState().getData("compute", "s")).toBeNull();
     expect(error).not.toHaveBeenCalled();
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Preparing fee details...", phase: "failed" }));
   });

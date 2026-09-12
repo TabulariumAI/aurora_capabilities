@@ -34,6 +34,7 @@ describe("ComputePanel", () => {
     render(<ComputePanel callbacks={{}} request={{ authToken: "t", capability: "compute", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-cp", session: "s" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", COURT: "court", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={onEndorse} onError={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => ({ chain: [{ class: "deed", required: "true", role: "owner", title: "Hidden owner" }], fee_factors: [{ amount: "40", code: "factor-1", explanation: "Taxable consideration.", name: "Consideration" }], fees: [{ amount: "40", code: "fee-1", explanation: "County recording charge.", formula: "base + pages", name: "Recording fee" }, { amount: "$203.50", code: "fee-2", explanation: "Additional county charge.", formula: "flat", name: "Additional fee" }], funds: [{ amount: "510", code: "fund-1", explanation: "Archive allocation.", formula: "flat", name: "Archive fund" }], heading: { class: "deed", title: "Title" }, history: { conveyance: [] } }) }} />);
     await waitFor(() => expect(screen.getByRole("button", { name: /Fee Factors/i })).toBeVisible());
     expect(screen.queryByRole("heading", { name: "Deed" })).not.toBeInTheDocument();
+    expect(document.querySelector("[data-metadata-context='true']")).toBeNull();
     expect(screen.queryByTestId("progress-caption")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Fee Factors/i })).toBeVisible();
     expect(screen.getByRole("button", { name: /^Fees/i })).toBeVisible();
@@ -85,6 +86,7 @@ describe("ComputePanel", () => {
 
     expect(onEndorse).not.toHaveBeenCalled();
     expect(endorse).toHaveAttribute("data-armed", "true");
+    expect(endorse).toHaveStyle({ outline: "2px solid var(--primary-dark)", outlineOffset: "2px" });
     expect(endorse.querySelector("[data-confirm-progress='true']")).not.toBeNull();
     expect(screen.getByRole("button", { name: "Confirm" })).toBeVisible();
     act(() => vi.advanceTimersByTime(4_000));

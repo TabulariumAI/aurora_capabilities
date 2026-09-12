@@ -28,6 +28,7 @@ describe("ProgressView", () => {
       />,
     );
 
+    expect(screen.getByTestId("progress-view")).toHaveAttribute("data-panel-scroll", "true");
     expect(screen.getByTestId("progress-caption")).toHaveTextContent("CALCULATING FEES AND FUNDS");
     expect(screen.getByTestId("progress-caption")).toHaveStyle({ color: "var(--slate-500)", textTransform: "uppercase" });
     expect(screen.getByText("I’ll keep you updated as I calculate document fees.")).toBeVisible();

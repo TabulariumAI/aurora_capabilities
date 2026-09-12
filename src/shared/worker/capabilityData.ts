@@ -1,13 +1,8 @@
 import { create } from "zustand";
 import type { CapabilityName } from "../type/capability.types";
 
-type CapabilityDataEntry = {
-  session: string;
-  value: unknown;
-};
-
 type CapabilityDataState = {
-  data: Partial<Record<CapabilityName, CapabilityDataEntry>>;
+  data: Map<string, Partial<Record<CapabilityName, unknown>>>;
   clearSession(session: string): void;
   getData(capability: CapabilityName, session: string): unknown | null;
   reset(): void;
@@ -15,25 +10,27 @@ type CapabilityDataState = {
 };
 
 export const useCapabilityDataStore = create<CapabilityDataState>()((set, get) => ({
-  data: {},
+  data: new Map(),
   clearSession(session) {
     set((state) => {
-      const data = { ...state.data };
-      for (const capability of Object.keys(data) as CapabilityName[]) {
-        if (data[capability]?.session === session) delete data[capability];
-      }
+      const data = new Map(state.data);
+      data.delete(session);
       return { data };
     });
   },
   getData(capability, session) {
-    const data = get().data[capability];
-    return data?.session === session ? data.value : null;
+    return get().data.get(session)?.[capability] ?? null;
   },
   reset() {
-    set({ data: {} });
+    set({ data: new Map() });
   },
   setData(capability, session, value) {
-    set((state) => ({ data: { ...state.data, [capability]: { session, value } } }));
+    set((state) => ({
+      data: new Map(state.data).set(session, {
+        ...state.data.get(session),
+        [capability]: value,
+      }),
+    }));
   },
 }));
 

@@ -1,5 +1,6 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { capabilityStyles } from "../../../shared/style/capabilityStyles";
 import { useCompositionStore } from "../store/compositionStore";
 import { CompositionPanel } from "../component/CompositionPanel";
 
@@ -81,6 +82,12 @@ describe("CompositionPanel", () => {
     expect(screen.queryByRole("button", { name: /Fee Factors/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Fees/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Funds/i })).not.toBeInTheDocument();
+    const accordion = screen.getByRole("region", { name: "Composition accordion" });
+    expect(accordion).toHaveAttribute("data-panel-scroll", "true");
+    expect(accordion).toHaveStyle({ flex: "1 1 0" });
+    expect(capabilityStyles.compositionAccordion).toMatchObject({ padding: "0 var(--panel-content-padding)" });
+    expect(capabilityStyles.composition).toMatchObject({ gap: 0, overflow: "hidden", padding: "0.75rem 0 0" });
+    expect(capabilityStyles.batchActions).toMatchObject({ padding: "0.75rem var(--panel-content-padding) var(--panel-content-padding)" });
 
     fireEvent.click(history);
 

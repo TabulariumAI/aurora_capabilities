@@ -1,4 +1,4 @@
-import type { MetadataPayload } from "aurorra-index";
+import type { MetadataPayload } from "aurora-core";
 import type { RecordResult } from "../../../shared/type/capability.types";
 import { capabilityFetch, parseCapabilityData, pollFromResponse } from "../../../shared/worker/capabilityHttp";
 

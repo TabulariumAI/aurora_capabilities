@@ -22,15 +22,15 @@ export function RecordPanel(props: RecordPanelProps): JSX.Element {
       completion={store.status === "ready" && (document || cover) ? (
         <section aria-label="Recording actions" style={capabilityStyles.recordWrap}>
           <div aria-label="Recording actions" role="group" style={capabilityStyles.recordActions}>
-            {document ? <DownloadButton disabled={store.delivering !== null} label="Recorded Document" onError={(error) => {
+            {document ? <DownloadButton disabled={store.delivering !== null} label="Endorsed Document" onError={(error) => {
               useRecordStore.getState().setDelivering(null);
-              progress.receive({ error, jobId: `${props.request.requestId}-record-download`, message: "Recorded document download failed.", phase: "failed" });
+              progress.receive({ error, jobId: `${props.request.requestId}-record-download`, message: "Endorsed document download failed.", phase: "failed" });
             }} onStart={() => {
               useRecordStore.getState().setDelivering("document");
-              progress.receive({ jobId: `${props.request.requestId}-record-download`, message: "Downloading recorded document", phase: "started" });
+              progress.receive({ jobId: `${props.request.requestId}-record-download`, message: "Downloading endorsed document", phase: "started" });
             }} onSuccess={() => {
               useRecordStore.getState().setDelivering(null);
-              progress.receive({ jobId: `${props.request.requestId}-record-download`, message: "Recorded document downloaded", phase: "completed" });
+              progress.receive({ jobId: `${props.request.requestId}-record-download`, message: "Endorsed document downloaded", phase: "completed" });
             }} url={document} /> : null}
             {cover ? <DownloadButton disabled={store.delivering !== null} label="Cover Page (Receipt)" onError={(error) => {
               useRecordStore.getState().setDelivering(null);

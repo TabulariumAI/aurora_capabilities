@@ -23,9 +23,9 @@ describe("DownloadButton", () => {
     const onStart = vi.fn();
     const onSuccess = vi.fn();
     downloadBlob.mockResolvedValue({ blob: new Blob(["record"]), name: "record.pdf" });
-    render(<DownloadButton disabled={false} label="Recorded Document" onError={vi.fn()} onStart={onStart} onSuccess={onSuccess} url="https://storage.test/subscription/s/record.pdf?sig=token" />);
+    render(<DownloadButton disabled={false} label="Endorsed Document" onError={vi.fn()} onStart={onStart} onSuccess={onSuccess} url="https://storage.test/subscription/s/record.pdf?sig=token" />);
 
-    const button = screen.getByRole("button", { name: "Recorded Document" });
+    const button = screen.getByRole("button", { name: "Endorsed Document" });
     expect(button).toHaveStyle({
       backgroundColor: "var(--primary)",
       borderRadius: "var(--radius-control)",
