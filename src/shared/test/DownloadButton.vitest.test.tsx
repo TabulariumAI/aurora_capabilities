@@ -27,7 +27,7 @@ describe("DownloadButton", () => {
 
     const button = screen.getByRole("button", { name: "Endorsed Document" });
     expect(button).toHaveStyle({
-      backgroundColor: "var(--primary)",
+      backgroundColor: "var(--primary-dark)",
       borderRadius: "var(--radius-control)",
       minHeight: "2.75rem",
     });

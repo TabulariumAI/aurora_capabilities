@@ -33,13 +33,13 @@ describe("ProgressView", () => {
     expect(screen.getByTestId("progress-caption")).toHaveStyle({ color: "var(--slate-500)", textTransform: "uppercase" });
     expect(screen.getByText("I’ll keep you updated as I calculate document fees.")).toBeVisible();
     expect(screen.getByRole("list", { name: "CALCULATING FEES AND FUNDS updates" })).toBeVisible();
+    expect(screen.getByTestId("progress-intro").firstElementChild).toHaveAttribute("style", expect.stringContaining("border: 1px solid var(--primary-dark)"));
     expect(screen.getByTestId("progress-intro").firstElementChild).toHaveStyle({
-      backgroundColor: "#F0F6FA",
-      border: "1px solid #1B7FA6",
-      color: "#1B7FA6",
+      backgroundColor: "var(--gray-50)",
+      color: "var(--primary-dark)",
     });
     expect(screen.getByTestId("progress-intro-connector")).toHaveStyle({ bottom: "-1.35rem", top: "2.5rem" });
-    expect(screen.getByTestId("progress-intro-connector")).toHaveStyle({ borderLeftColor: "#B7C8CF" });
+    expect(screen.getByTestId("progress-intro-connector")).toHaveStyle({ borderLeftColor: "var(--gray-300)" });
   });
 
   it("renders failure as the final timeline step without a recovery button", () => {
@@ -83,19 +83,19 @@ describe("ProgressView", () => {
     );
 
     const rows = screen.getAllByRole("listitem");
+    expect(within(rows[0]).getByLabelText("In progress")).toHaveAttribute("style", expect.stringContaining("border: 1px solid var(--primary-dark)"));
     expect(within(rows[0]).getByLabelText("In progress")).toHaveStyle({
-      backgroundColor: "#F0F6FA",
-      border: "1px solid #1B7FA6",
-      color: "#1B7FA6",
+      backgroundColor: "var(--gray-50)",
+      color: "var(--primary-dark)",
       height: "3.25rem",
       width: "3.25rem",
     });
     expect(within(rows[0]).getByTestId("progress-spinner")).toHaveClass("progressview-active");
-    expect(within(rows[0]).getByText("Generating manifest...").parentElement).toHaveStyle({ backgroundColor: "rgba(27, 127, 166, 0.05)" });
+    expect(within(rows[0]).getByText("Generating manifest...").parentElement).toHaveStyle({ backgroundColor: "var(--accent-surface)" });
     expect(within(rows[1]).getByLabelText("Completed")).toHaveStyle({
-      backgroundColor: "#ECF7F1",
-      border: "1px solid #1E8E5E",
-      color: "#1E8E5E",
+      backgroundColor: "#ECFDF3",
+      border: "1px solid #15803D",
+      color: "#15803D",
     });
     expect(within(rows[2]).getByLabelText("Failed")).toHaveStyle({ backgroundColor: "#FEF2F2", color: "#991B1B" });
     expect(within(rows[2]).getByText("Downloading manifest...").parentElement).toHaveStyle({ backgroundColor: "#FEF2F2" });
@@ -119,13 +119,13 @@ describe("ProgressView", () => {
     expect(within(rows[0]).getByTestId("progress-completed-check")).toBeVisible();
     expect(within(rows[1]).getByTestId("progress-success-star")).toBeVisible();
     expect(within(rows[1]).getByTestId("progress-success-star").querySelector("path")).toHaveAttribute("d", "m12 2.5 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9L12 2.5Z");
+    expect(within(rows[1]).getByLabelText("Completed")).toHaveAttribute("style", expect.stringContaining("border: 1px solid var(--primary-dark)"));
     expect(within(rows[1]).getByLabelText("Completed")).toHaveStyle({
-      backgroundColor: "#F0F6FA",
-      border: "1px solid #1B7FA6",
-      color: "#1B7FA6",
+      backgroundColor: "var(--gray-50)",
+      color: "var(--primary-dark)",
     });
-    expect(within(rows[0]).getByText("Checking manifest status...").parentElement).toHaveStyle({ backgroundColor: "rgba(30, 142, 94, 0.05)" });
-    expect(within(rows[1]).getByText("Manifest is ready to download.").parentElement).toHaveStyle({ backgroundColor: "rgba(27, 127, 166, 0.05)" });
+    expect(within(rows[0]).getByText("Checking manifest status...").parentElement).toHaveStyle({ backgroundColor: "#ECFDF3" });
+    expect(within(rows[1]).getByText("Manifest is ready to download.").parentElement).toHaveStyle({ backgroundColor: "var(--accent-surface)" });
     expect(within(rows[0]).queryByRole("link", { name: "Download manifest" })).not.toBeInTheDocument();
     expect(within(rows[1]).getByRole("link", { name: "Download manifest" })).toHaveAttribute("href", "manifest.pdf");
   });

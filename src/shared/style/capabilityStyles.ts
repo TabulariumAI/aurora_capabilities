@@ -75,7 +75,7 @@ export const capabilityStyles = {
     borderRadius: "var(--radius-control)",
     fontWeight: 600,
     border: "1px solid var(--primary)",
-    backgroundColor: "var(--primary)",
+    backgroundColor: "var(--primary-dark)",
     boxShadow: "var(--shadow-action)",
     color: "var(--white)",
   } satisfies CSSProperties,

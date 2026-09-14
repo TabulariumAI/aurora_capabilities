@@ -58,10 +58,10 @@ describe("ManifestPanel", () => {
     await waitFor(() => expect(screen.getByText("Manifest downloaded.")).toBeInTheDocument());
     const downloaded = screen.getByText("Manifest downloaded.").closest("li");
     expect(downloaded).toHaveAttribute("data-phase", "completed");
+    expect(within(downloaded!).getByLabelText("Completed")).toHaveAttribute("style", expect.stringContaining("border: 1px solid var(--primary-dark)"));
     expect(within(downloaded!).getByLabelText("Completed")).toHaveStyle({
-      backgroundColor: "#F0F6FA",
-      border: "1px solid #1B7FA6",
-      color: "#1B7FA6",
+      backgroundColor: "var(--gray-50)",
+      color: "var(--primary-dark)",
     });
     expect(action.compareDocumentPosition(downloaded!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 

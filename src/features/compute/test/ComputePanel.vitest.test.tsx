@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComputePanel } from "../component/ComputePanel";
 
@@ -68,6 +68,7 @@ describe("ComputePanel", () => {
     const feeRow = screen.getByText("$40.00").closest("article");
     expect(feeRow).toHaveTextContent("Recording fee");
     expect(feeRow).toHaveTextContent("Formula: base + pages");
+    fireEvent.click(within(feeRow!).getByRole("button", { name: "Expand details" }));
     expect(feeRow).toHaveTextContent("Explanation: County recording charge.");
     expect(screen.getByText("$203.50", { exact: true })).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: /^Fee Factors/i }));
