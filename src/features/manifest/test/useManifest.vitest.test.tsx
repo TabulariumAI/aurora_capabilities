@@ -1,5 +1,5 @@
-import { renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useManifest } from "../hook/useManifest";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 
@@ -14,7 +14,7 @@ describe("useManifest", () => {
       tif: "https://storage.test/subscription/s/ReportPage.Tiff?sig=token",
     };
     renderHook(() => useManifest({
-      request: { authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest", session: "s" },
       onComplete,
       onError: vi.fn(),
       onProgress,
@@ -34,7 +34,7 @@ describe("useManifest", () => {
     const onError = vi.fn();
     const onProgress = vi.fn();
     renderHook(() => useManifest({
-      request: { authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-data", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-data", session: "s" },
       onComplete: vi.fn(),
       onError,
       onProgress,
@@ -56,7 +56,7 @@ describe("useManifest", () => {
     const onError = vi.fn();
     const onProgress = vi.fn();
     renderHook(() => useManifest({
-      request: { authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-status", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-status", session: "s" },
       onComplete: vi.fn(),
       onError,
       onProgress,
@@ -73,4 +73,27 @@ describe("useManifest", () => {
     })));
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ error: "Manifest checkStatus failed.", phase: "failed" }));
   });
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+it.each([false, true])("publishes only after data is ready; canceled=%s", async (canceled) => {
+  let finish!: (value: { pdf: string; chain: never[] }) => void;
+  const data = { pdf: "https://test/document.pdf", chain: [] as never[] };
+  const workerClient = {
+    submit: vi.fn(async () => ({ status: "completed", data: null })),
+    status: vi.fn(async () => ({ status: "completed", data: null })),
+    data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })),
+  };
+  const props = { request: { authToken: "t", capability: "manifest" as const, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-manifest", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
+  const view = renderHook(() => useManifest(props));
+  await waitFor(() => expect(workerClient.data).toHaveBeenCalledOnce());
+  if (canceled) view.unmount();
+  await act(async () => finish(data));
+  if (canceled) {
+    expect(props.onComplete).not.toHaveBeenCalled();
+  } else {
+    view.rerender();
+    view.unmount();
+  }
 });

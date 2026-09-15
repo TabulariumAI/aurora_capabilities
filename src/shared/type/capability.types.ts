@@ -45,6 +45,7 @@ export type RedactResult = CapabilityData;
 export type ManifestResult = CapabilityData;
 
 export type CapabilityRequestBase = {
+  document: string;
   authToken: string;
   documentApiGatewayUrl: string;
   intervalMs: number;
@@ -56,11 +57,9 @@ export type ComputeRequest = CapabilityRequestBase & { capability: "compute" };
 export type CompositionRequest = CapabilityRequestBase & { capability: "composition" };
 export type RecordRequest = CapabilityRequestBase & {
   capability: "record";
-  document: string;
 };
 export type RedactRequest = CapabilityRequestBase & {
   capability: "redact";
-  document: string;
 };
 export type ManifestRequest = CapabilityRequestBase & { capability: "manifest" };
 

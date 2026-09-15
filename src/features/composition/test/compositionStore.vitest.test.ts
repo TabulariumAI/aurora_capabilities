@@ -4,7 +4,7 @@ import { useCompositionStore } from "../store/compositionStore";
 describe("composition store", () => {
   it("opens with default segment and resets", () => {
     useCompositionStore.getState().reset();
-    useCompositionStore.getState().open({ authToken: "t", capability: "composition", documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r", session: "s" }, "chain");
+    useCompositionStore.getState().open({ document: "document.pdf", authToken: "t", capability: "composition", documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r", session: "s" }, "chain");
     expect(useCompositionStore.getState()).toMatchObject({ openSegment: "chain", visible: true });
     useCompositionStore.getState().reset();
     expect(useCompositionStore.getState()).toMatchObject({ request: null, visible: false });
@@ -12,7 +12,7 @@ describe("composition store", () => {
 
   it("clears the active request after a terminal failure", () => {
     useCompositionStore.getState().reset();
-    const request = { authToken: "t", capability: "composition" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r", session: "s" };
+    const request = { document: "document.pdf", authToken: "t", capability: "composition" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r", session: "s" };
     useCompositionStore.getState().open(request, "chain");
     expect(useCompositionStore.getState().setRunning(request.requestId)).toBe(true);
 
@@ -24,7 +24,7 @@ describe("composition store", () => {
 
   it("keeps the completed capability surface visible", () => {
     useCompositionStore.getState().reset();
-    const request = { authToken: "t", capability: "composition" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r", session: "s" };
+    const request = { document: "document.pdf", authToken: "t", capability: "composition" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r", session: "s" };
     useCompositionStore.getState().open(request, "chain");
 
     useCompositionStore.getState().setReady(request.requestId);

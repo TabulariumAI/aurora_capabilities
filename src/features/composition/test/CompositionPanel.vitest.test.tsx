@@ -9,7 +9,7 @@ afterEach(() => {
   useCompositionStore.getState().reset();
 });
 
-const request = {
+const request = { document: "document.pdf",
   authToken: "t",
   capability: "composition" as const,
   documentApiGatewayUrl: "u",

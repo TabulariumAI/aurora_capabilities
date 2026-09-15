@@ -4,7 +4,7 @@ import { useComputeStore } from "../store/computeStore";
 describe("compute store", () => {
   it("opens, guards stale ready writes, and clears matching sessions", () => {
     useComputeStore.getState().reset();
-    const request = { authToken: "t", capability: "compute" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r1", session: "s1" };
+    const request = { document: "document.pdf", authToken: "t", capability: "compute" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r1", session: "s1" };
     useComputeStore.getState().open(request, "fee");
     expect(useComputeStore.getState()).toMatchObject({ openSegment: "fee", status: "loading", visible: true });
     useComputeStore.getState().setReady("stale");
@@ -15,7 +15,7 @@ describe("compute store", () => {
 
   it("clears the active request after a terminal failure", () => {
     useComputeStore.getState().reset();
-    const request = { authToken: "t", capability: "compute" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r1", session: "s1" };
+    const request = { document: "document.pdf", authToken: "t", capability: "compute" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r1", session: "s1" };
     useComputeStore.getState().open(request, "fee");
     expect(useComputeStore.getState().setRunning(request.requestId)).toBe(true);
 
@@ -27,7 +27,7 @@ describe("compute store", () => {
 
   it("keeps the completed capability surface visible", () => {
     useComputeStore.getState().reset();
-    const request = { authToken: "t", capability: "compute" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r1", session: "s1" };
+    const request = { document: "document.pdf", authToken: "t", capability: "compute" as const, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r1", session: "s1" };
     useComputeStore.getState().open(request, "fee");
 
     useComputeStore.getState().setReady(request.requestId);

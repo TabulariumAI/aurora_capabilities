@@ -1,5 +1,5 @@
-import { renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCompute } from "../hook/useCompute";
 import { useComputeStore } from "../store/computeStore";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
@@ -36,7 +36,7 @@ describe("useCompute", () => {
     const calls: string[] = [];
     const data = { heading: { class: "deed", title: "Title" } };
     renderHook(() => useCompute({
-      request: { authToken: "t", capability: "compute", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "compute", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r", session: "s" },
       onComplete,
       onError: vi.fn(),
       onProgress,
@@ -60,7 +60,7 @@ describe("useCompute", () => {
     const onError = vi.fn();
     const onProgress = vi.fn();
     renderHook(() => useCompute({
-      request: { authToken: "t", capability: "compute", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-data", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "compute", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-data", session: "s" },
       onComplete: vi.fn(),
       onError,
       onProgress,
@@ -77,4 +77,26 @@ describe("useCompute", () => {
     expect(error).not.toHaveBeenCalled();
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Preparing fee details...", phase: "failed" }));
   });
+});
+
+
+it.each([false, true])("publishes only after data is ready; canceled=%s", async (canceled) => {
+  let finish!: (value: typeof data) => void;
+  const data = { heading: { class: "deed", title: "Title" } };
+  const workerClient = {
+    submit: vi.fn(async () => ({ status: "completed", data: null })),
+    status: vi.fn(async () => ({ status: "completed", data: null })),
+    data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })),
+  };
+  const props = { segments, request: { authToken: "t", capability: "compute" as const, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-compute", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
+  const view = renderHook(() => useCompute(props));
+  await waitFor(() => expect(workerClient.data).toHaveBeenCalledOnce());
+  if (canceled) view.unmount();
+  await act(async () => finish(data));
+  if (canceled) {
+    expect(props.onComplete).not.toHaveBeenCalled();
+  } else {
+    view.rerender();
+    view.unmount();
+  }
 });

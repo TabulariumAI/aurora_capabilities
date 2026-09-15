@@ -1,5 +1,5 @@
-import { renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useComposition } from "../hook/useComposition";
 import { useCompositionStore } from "../store/compositionStore";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
@@ -16,7 +16,7 @@ describe("useComposition", () => {
     let checks = 0;
     const data = { chain: [] };
     renderHook(() => useComposition({
-      request: { authToken: "t", capability: "composition", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-comp", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "composition", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-comp", session: "s" },
       onComplete,
       onError: vi.fn(),
       onProgress,
@@ -38,7 +38,7 @@ describe("useComposition", () => {
     const onError = vi.fn();
     const onProgress = vi.fn();
     renderHook(() => useComposition({
-      request: { authToken: "t", capability: "composition", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-comp-status", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "composition", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-comp-status", session: "s" },
       onComplete: vi.fn(),
       onError,
       onProgress,
@@ -53,4 +53,27 @@ describe("useComposition", () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "status" })));
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Composing document metadata...", phase: "failed" }));
   });
+});
+
+afterEach(() => vi.restoreAllMocks());
+
+it.each([false, true])("publishes only after data is ready; canceled=%s", async (canceled) => {
+  let finish!: (value: { pdf: string; chain: never[] }) => void;
+  const data = { pdf: "https://test/document.pdf", chain: [] as never[] };
+  const workerClient = {
+    submit: vi.fn(async () => ({ status: "completed", data: null })),
+    status: vi.fn(async () => ({ status: "completed", data: null })),
+    data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })), options: vi.fn(),
+  };
+  const props = { request: { authToken: "t", capability: "composition" as const, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-composition", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
+  const view = renderHook(() => useComposition(props));
+  await waitFor(() => expect(workerClient.data).toHaveBeenCalledOnce());
+  if (canceled) view.unmount();
+  await act(async () => finish(data));
+  if (canceled) {
+    expect(props.onComplete).not.toHaveBeenCalled();
+  } else {
+    view.rerender();
+    view.unmount();
+  }
 });

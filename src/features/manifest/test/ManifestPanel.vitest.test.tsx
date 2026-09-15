@@ -19,7 +19,7 @@ afterEach(() => {
 
 describe("ManifestPanel", () => {
   it("shows manifest creation progress in the panel", async () => {
-    const view = render(<ManifestPanel request={{ authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 1_000, requestId: "r-manifest-loader", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ status: async () => ({ data: null, status: "processing" }), submit: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
+    const view = render(<ManifestPanel request={{ document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 1_000, requestId: "r-manifest-loader", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ status: async () => ({ data: null, status: "processing" }), submit: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
 
     expect(await screen.findByText("GENERATING THE INDEX MANIFEST")).toBeVisible();
     expect(screen.getByText("I’ll keep you updated as I generate the manifest.")).toBeVisible();
@@ -34,7 +34,7 @@ describe("ManifestPanel", () => {
       .mockResolvedValueOnce({ data: null, status: "completed" });
 
     const pdf = "https://storage.test/subscription/s/ReportPage.PDF?sig=token";
-    render(<ManifestPanel request={{ authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-panel", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ status, submit: async () => ({ data: null, status: "processing" }), data: async () => ({ pdf }) }} />);
+    render(<ManifestPanel request={{ document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-panel", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ status, submit: async () => ({ data: null, status: "processing" }), data: async () => ({ pdf }) }} />);
     await waitFor(() => expect(screen.getByText("Manifest is ready to download.")).toBeInTheDocument());
     const panel = screen.getByRole("region", { name: "GENERATING THE INDEX MANIFEST" });
     const rows = within(panel).getAllByRole("listitem");
@@ -70,7 +70,7 @@ describe("ManifestPanel", () => {
   });
 
   it("keeps a manifest failure visible as the final timeline step", async () => {
-    render(<ManifestPanel request={{ authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-failed", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ status: async () => ({ data: "Manifest unavailable", status: "error" }), submit: vi.fn(), data: vi.fn() }} />);
+    render(<ManifestPanel request={{ document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-failed", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ status: async () => ({ data: "Manifest unavailable", status: "error" }), submit: vi.fn(), data: vi.fn() }} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Manifest checkStatus failed: Manifest unavailable");
     expect(screen.getAllByRole("listitem").at(-1)).toHaveAttribute("data-phase", "failed");
@@ -86,10 +86,10 @@ describe("ManifestPanel", () => {
     const workerClient = { status, submit: async () => ({ data: null, status: "processing" }), data: async () => ({ pdf: "https://storage.test/subscription/s/ReportPage.PDF?sig=token" }) };
     const onComplete = vi.fn();
     const onError = vi.fn();
-    const view = render(<ManifestPanel request={{ authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "manifest-1", session: "s" }} onComplete={onComplete} onError={onError} workerClient={workerClient} />);
+    const view = render(<ManifestPanel request={{ document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "manifest-1", session: "s" }} onComplete={onComplete} onError={onError} workerClient={workerClient} />);
 
     await waitFor(() => expect(screen.getByText("Manifest is ready to download.")).toBeInTheDocument());
-    view.rerender(<ManifestPanel request={{ authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "manifest-2", session: "s" }} onComplete={onComplete} onError={onError} workerClient={workerClient} />);
+    view.rerender(<ManifestPanel request={{ document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "manifest-2", session: "s" }} onComplete={onComplete} onError={onError} workerClient={workerClient} />);
 
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(3));
     expect(screen.queryByText("Generating document manifest...")).not.toBeInTheDocument();

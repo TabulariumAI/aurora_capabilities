@@ -13,6 +13,7 @@ if (state !== "ready" && state !== "pending" && state !== "failed" && state !== 
   throw new Error("A valid capability state is required.");
 }
 const requestBase = {
+  document: "visual.pdf",
   authToken: "token",
   documentApiGatewayUrl: "https://example.test",
   intervalMs: 4000,
