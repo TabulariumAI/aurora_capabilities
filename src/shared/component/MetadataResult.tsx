@@ -42,10 +42,8 @@ export function MetadataResult({
         actions={{
           confirm: false,
           drop: false,
-          refine: false,
           reprocess: false,
         }}
-        batch="Pending"
         callbacks={callbacks}
         choices={null}
         confirmedCodes={emptySet}
