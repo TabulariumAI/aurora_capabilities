@@ -17,6 +17,7 @@ export function CompositionPanel(props: CompositionPanelProps): JSX.Element {
   if (store.status === "ready" && result != null) {
     return (
       <CompositionView
+        canLink={props.canLink}
         callbacks={props.callbacks}
         metadata={result}
         onError={props.onError}

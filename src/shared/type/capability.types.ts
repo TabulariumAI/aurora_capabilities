@@ -188,6 +188,7 @@ export type ComputePanelProps = {
 };
 
 export type CompositionPanelProps = {
+  canLink: boolean;
   callbacks: MetadataCapabilityCallbacks;
   onComplete: (terminal: CapabilityComplete<"composition", CompositionResult>) => void;
   onError: (failure: CompositionFailure) => void;

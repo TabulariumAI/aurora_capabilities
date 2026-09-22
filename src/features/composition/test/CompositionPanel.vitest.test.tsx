@@ -45,7 +45,7 @@ const result = {
 
 describe("CompositionPanel", () => {
   it("renders document composition progress while the worker is pending", async () => {
-    render(<CompositionPanel callbacks={{}} request={{ ...request, intervalMs: 1_000 }} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "processing" }), status: () => new Promise<never>(() => undefined), data: vi.fn(), options: vi.fn() }} />);
+    render(<CompositionPanel canLink callbacks={{}} request={{ ...request, intervalMs: 1_000 }} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "processing" }), status: () => new Promise<never>(() => undefined), data: vi.fn(), options: vi.fn() }} />);
 
     expect(await screen.findByText("COMPOSING DOCUMENT METADATA")).toBeVisible();
     expect(screen.getByText("I’ll keep you updated while I compose the document and prepare its metadata.")).toBeVisible();
@@ -55,17 +55,17 @@ describe("CompositionPanel", () => {
 
   it("replaces progress rows for a new composition", async () => {
     const workerClient = { submit: async () => ({ data: null, status: "processing" }), status: () => new Promise<never>(() => undefined), data: vi.fn(), options: vi.fn() };
-    const view = render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={workerClient} />);
+    const view = render(<CompositionPanel canLink callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={workerClient} />);
 
     await screen.findByText("Composing document metadata...");
-    view.rerender(<CompositionPanel callbacks={{}} request={{ ...request, requestId: "composition-2" }} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={workerClient} />);
+    view.rerender(<CompositionPanel canLink callbacks={{}} request={{ ...request, requestId: "composition-2" }} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={workerClient} />);
 
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(2));
     expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("Starting document composition...");
   });
 
   it("replaces progress with a composition view containing only Chain and History", async () => {
-    render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
+    render(<CompositionPanel canLink callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
 
     expect(await screen.findByRole("region", { name: "Composition" })).toBeVisible();
     const chain = screen.getByRole("button", { name: "Chain" });
@@ -102,7 +102,7 @@ describe("CompositionPanel", () => {
     const onLinkBatch = vi.fn(() => new Promise<typeof linked | null>((done) => { resolve = done; }));
     const onViewBatch = vi.fn();
     const options = vi.fn(async () => ["10 Main Street", "APN-123"]);
-    render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={onViewBatch} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options }} />);
+    render(<CompositionPanel canLink callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={onViewBatch} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options }} />);
     const link = await screen.findByRole("button", { name: "Link to batch" });
     await waitFor(() => expect(options).toHaveBeenCalledWith("t", "s"));
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
@@ -115,7 +115,7 @@ describe("CompositionPanel", () => {
     expect(onLinkBatch).toHaveBeenCalledTimes(1);
     resolve(linked);
     const view = await screen.findByRole("button", { name: "View batch" });
-    expect(screen.getByText("Session linked to batch.").closest("li")).toContainElement(view);
+    expect(screen.getByText("Session linked locally. Pending sync.").closest("li")).toContainElement(view);
     expect(screen.queryByRole("group", { name: "Composition actions" })).not.toBeInTheDocument();
     fireEvent.click(view);
     expect(onViewBatch).toHaveBeenCalledWith(linked);
@@ -123,7 +123,7 @@ describe("CompositionPanel", () => {
 
   it("keeps Link available after cancelling the dialog, without reporting failure", async () => {
     const onLinkBatch = vi.fn(async () => null);
-    render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
+    render(<CompositionPanel canLink callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
     const link = await screen.findByRole("button", { name: "Link to batch" });
     fireEvent.click(link);
     await waitFor(() => expect(onLinkBatch).toHaveBeenCalledWith("user", []));
@@ -133,7 +133,7 @@ describe("CompositionPanel", () => {
   });
 
   it("allows retry after the host rejects batch selection", async () => {
-    render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={async () => { throw new Error("Link unavailable"); }} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
+    render(<CompositionPanel canLink callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={async () => { throw new Error("Link unavailable"); }} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
     fireEvent.click(await screen.findByRole("button", { name: "Link to batch" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Link unavailable");
     expect(screen.getByRole("button", { name: "Link to batch" })).toBeEnabled();
@@ -141,7 +141,7 @@ describe("CompositionPanel", () => {
 
   it("reports batch-name option failures through onError", async () => {
     const onError = vi.fn();
-    render(<CompositionPanel callbacks={{}} request={request} onComplete={vi.fn()} onError={onError} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => { throw new Error("Batch names unavailable"); } }} />);
+    render(<CompositionPanel canLink callbacks={{}} request={request} onComplete={vi.fn()} onError={onError} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => { throw new Error("Batch names unavailable"); } }} />);
     await screen.findByRole("region", { name: "Composition" });
 
     await waitFor(() => expect(onError).toHaveBeenCalledWith({
@@ -154,11 +154,20 @@ describe("CompositionPanel", () => {
   });
 
   it("keeps a composition failure as the final timeline step", async () => {
-    render(<CompositionPanel callbacks={{}} request={{ ...request, requestId: "composition-failed" }} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: "Composition unavailable", status: "error" }), status: vi.fn(), data: vi.fn(), options: vi.fn() }} />);
+    render(<CompositionPanel canLink callbacks={{}} request={{ ...request, requestId: "composition-failed" }} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={vi.fn()} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: "Composition unavailable", status: "error" }), status: vi.fn(), data: vi.fn(), options: vi.fn() }} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Composition unavailable");
     expect(screen.getAllByRole("listitem").at(-1)).toHaveAttribute("data-phase", "failed");
     expect(screen.getByText("COMPOSING DOCUMENT METADATA")).toBeVisible();
     expect(screen.queryByRole("button", { name: "Link to batch" })).not.toBeInTheDocument();
   });
+});
+
+it("disables linking when the session is no longer Pending", async () => {
+  const onLinkBatch = vi.fn();
+  render(<CompositionPanel canLink={false} callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
+  const link = await screen.findByRole("button", { name: "Link to batch" });
+  expect(link).toBeDisabled();
+  fireEvent.click(link);
+  expect(onLinkBatch).not.toHaveBeenCalled();
 });

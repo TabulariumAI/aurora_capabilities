@@ -17,6 +17,7 @@ export function CompositionView({
   callbacks,
   metadata,
   onError,
+  canLink,
   onLinkBatch,
   onViewBatch,
   openSegment,
@@ -26,7 +27,7 @@ export function CompositionView({
   shortcuts,
   token,
   workerClient,
-}: Pick<CompositionPanelProps, "callbacks" | "onError" | "onLinkBatch" | "onViewBatch"> & {
+}: Pick<CompositionPanelProps, "canLink" | "callbacks" | "onError" | "onLinkBatch" | "onViewBatch"> & {
   metadata: CompositionResult;
   openSegment: string | null;
   requestId: string;
@@ -116,7 +117,7 @@ export function CompositionView({
       const batch = await onLinkBatch("user", batchNames);
       if (batch) {
         setLinkedBatch(batch);
-        setLinkJob({ jobId: batchJobId, message: "Session linked to batch.", phase: "completed" });
+        setLinkJob({ jobId: batchJobId, message: "Session linked locally. Pending sync.", phase: "completed" });
       }
     } catch (error) {
       setLinkJob({
@@ -215,11 +216,11 @@ export function CompositionView({
         {linkedBatch ? null : (
           <div aria-label="Composition actions" role="group" style={capabilityStyles.batchActions}>
             <button
-              disabled={saving}
+              disabled={saving || !canLink}
               onClick={() => void linkBatch()}
               style={{
                 ...capabilityStyles.primaryButton,
-                ...(saving ? capabilityStyles.disabled : {}),
+                ...((saving || !canLink) ? capabilityStyles.disabled : {}),
               }}
               type="button"
             >
