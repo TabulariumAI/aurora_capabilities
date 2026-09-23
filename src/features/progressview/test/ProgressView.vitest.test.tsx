@@ -18,6 +18,54 @@ afterEach(() => {
 });
 
 describe("ProgressView", () => {
+  it("hides a completed event's counter and bar", () => {
+    render(<ProgressView fillCompletion={false} intro="I’ll keep you updated as I generate the manifest." jobs={[{
+      jobId: "manifest",
+      message: "Preparing manifest download...",
+      phase: "completed",
+      progress: { completed: 21, total: 21, unit: "steps" },
+    }]} process="GENERATING THE INDEX MANIFEST" />);
+
+    expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Step 21 of 21")).not.toBeInTheDocument();
+  });
+
+  it("renders an indeterminate bar for an active repeated group without a counter", () => {
+    render(
+      <ProgressView
+        fillCompletion={false}
+        intro="I’ll keep you updated as I generate the manifest."
+        jobs={[
+          { jobId: "first", message: "Preparing manifest download...", phase: "completed" },
+          { jobId: "second", message: "Preparing manifest download...", phase: "started" },
+        ]}
+        process="GENERATING THE INDEX MANIFEST"
+      />,
+    );
+
+    const bar = screen.getByRole("progressbar", { name: "Preparing manifest download..." });
+    expect(bar).not.toHaveAttribute("aria-valuemin");
+    expect(bar.querySelector(".progressview-indeterminate")).not.toBeNull();
+  });
+
+  it("groups only consecutive jobs with the same message for display", () => {
+    render(
+      <ProgressView
+        fillCompletion={false}
+        intro="I’ll keep you updated as I generate the manifest."
+        jobs={[
+          { jobId: "first", message: "Preparing manifest download...", phase: "completed" },
+          { jobId: "second", message: "Preparing manifest download...", phase: "started" },
+          { jobId: "third", message: "Generating document manifest...", phase: "started" },
+          { jobId: "fourth", message: "Preparing manifest download...", phase: "started" },
+        ]}
+        process="GENERATING THE INDEX MANIFEST"
+      />,
+    );
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(3);
+  });
+
   it("renders the uppercase process caption using the intake convention", () => {
     render(
       <ProgressView

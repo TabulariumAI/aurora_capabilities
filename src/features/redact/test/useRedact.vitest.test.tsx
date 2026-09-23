@@ -45,6 +45,28 @@ describe("useRedact", () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "submit" })));
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Redacting confidential information...", phase: "failed" }));
   });
+
+  it("advances the redaction timer counter without adding status requests", async () => {
+    const onComplete = vi.fn();
+    const onProgress = vi.fn();
+    let checks = 0;
+    renderHook(() => useRedact({
+      request: { authToken: "t", capability: "redact", document: "d", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-redact-counter", session: "s" },
+      onComplete,
+      onError: vi.fn(),
+      onProgress,
+      workerClient: {
+        status: async () => ({ data: null, status: ++checks > 1 ? "completed" : "processing" }),
+        submit: async () => ({ data: null, status: "processing" }),
+        data: async () => ({ pdf: "redacted.pdf" }),
+      },
+    }));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
+    expect(checks).toBe(2);
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Redacting confidential information...", progress: { completed: 0, total: 21, unit: "steps" } }));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Redacting confidential information...", progress: { completed: 1, total: 21, unit: "steps" } }));
+  });
 });
 
 afterEach(() => vi.restoreAllMocks());

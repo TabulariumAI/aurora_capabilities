@@ -40,12 +40,14 @@ export function useComposition({ onComplete, onError, onProgress, request, worke
         operation = "status";
         progressId = "composition";
         message = "Composing document metadata...";
-        onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
+        onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 1, total: 28, unit: "steps" } });
         response = await client.status(request.authToken, request.session);
         if (isFailed(response.status)) throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as { data?: unknown })?.data}` };
         let complete = isComplete(response.status);
         for (let attempt = 0; !complete && attempt < 27; attempt += 1) {
           await wait(request.intervalMs);
+          if (canceled) return;
+          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: attempt + 2, total: 28, unit: "steps" } });
           operation = "status";
           response = await client.status(request.authToken, request.session);
           if (isFailed(response.status)) throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as { data?: unknown })?.data}` };

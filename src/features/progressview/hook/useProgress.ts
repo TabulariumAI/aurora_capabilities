@@ -1,6 +1,17 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import type { ProgressEvent, ProgressJob } from "../type/progress.types";
 
+function mergeJob(current: ProgressJob, event: ProgressEvent): ProgressJob {
+  const restarting = event.phase === "started" && (current.phase === "completed" || current.phase === "failed");
+  const next = { ...current, ...event };
+  if (!restarting) return next;
+
+  const { error: _error, ...withoutError } = next;
+  if (Object.hasOwn(event, "progress")) return withoutError;
+  const { progress: _progress, ...withoutProgress } = withoutError;
+  return withoutProgress;
+}
+
 type ProgressState = {
   jobs: readonly ProgressJob[];
   receive(event: ProgressEvent): void;
@@ -17,23 +28,19 @@ export function useProgress(requestId: string): ProgressState {
     setState((current) => {
       const jobs = current.requestId === requestId ? current.jobs : [];
       if (event.phase === "started") {
-        const next = { jobId: event.jobId, message: event.message, phase: event.phase } as const;
-        const exists = jobs.some((job) => job.jobId === event.jobId);
+        const jobIndex = jobs.findIndex((job) => job.jobId === event.jobId);
         return {
-          jobs: exists
-            ? jobs.map<ProgressJob>((job) => job.jobId === event.jobId ? next : job.phase === "started" ? { ...job, phase: "completed" } : job)
-            : [...jobs.map<ProgressJob>((job) => job.phase === "started" ? { ...job, phase: "completed" } : job), next],
+          jobs: jobIndex >= 0
+            ? jobs.map<ProgressJob>((job) => job.jobId === event.jobId
+              ? mergeJob(job, event)
+              : job.phase === "started" ? { ...job, phase: "completed" } : job)
+            : [...jobs.map<ProgressJob>((job) => job.phase === "started" ? { ...job, phase: "completed" } : job), event],
           requestId,
         };
       }
 
       return { jobs: jobs.map<ProgressJob>((job) => job.jobId === event.jobId
-        ? {
-            ...job,
-            ...(event.phase === "failed" ? { error: event.error } : {}),
-            message: event.message,
-            phase: event.phase,
-          }
+        ? mergeJob(job, event)
         : job), requestId };
     });
   }, [requestId]);

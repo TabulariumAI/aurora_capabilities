@@ -52,6 +52,28 @@ describe("useManifest", () => {
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Preparing manifest download...", phase: "failed" }));
   });
 
+  it("advances the manifest timer counter without adding status requests", async () => {
+    const onComplete = vi.fn();
+    const onProgress = vi.fn();
+    let checks = 0;
+    renderHook(() => useManifest({
+      request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-counter", session: "s" },
+      onComplete,
+      onError: vi.fn(),
+      onProgress,
+      workerClient: {
+        status: async () => ({ data: null, status: ++checks > 1 ? "completed" : "processing" }),
+        submit: async () => ({ data: null, status: "processing" }),
+        data: async () => ({ pdf: "manifest.pdf" }),
+      },
+    }));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
+    expect(checks).toBe(2);
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Generating document manifest...", progress: { completed: 0, total: 21, unit: "steps" } }));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Generating document manifest...", progress: { completed: 1, total: 21, unit: "steps" } }));
+  });
+
   it("reports an empty status failure with one fallback", async () => {
     const onError = vi.fn();
     const onProgress = vi.fn();

@@ -51,6 +51,29 @@ describe("useRecord", () => {
     await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "compute-data" })));
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Preparing endorsement details...", phase: "failed" }));
   });
+
+  it("advances the recording timer counter without adding status requests", async () => {
+    const onComplete = vi.fn();
+    const onProgress = vi.fn();
+    let checks = 0;
+    renderHook(() => useRecord({
+      request: { authToken: "t", capability: "record", document: "d", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-record-counter", session: "s" },
+      onComplete,
+      onError: vi.fn(),
+      onProgress,
+      workerClient: {
+        status: async () => ({ data: null, status: ++checks > 1 ? "completed" : "processing" }),
+        computeData: async () => ({ heading: { class: "deed" } }),
+        submit: async () => ({ data: null, status: "processing" }),
+        data: async () => ({ pdf_confirmation: "confirmation.pdf", pdf_record: "record.pdf" }),
+      },
+    }));
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalled());
+    expect(checks).toBe(2);
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Recording the document now...", progress: { completed: 0, total: 21, unit: "steps" } }));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Recording the document now...", progress: { completed: 1, total: 21, unit: "steps" } }));
+  });
 });
 
 afterEach(() => vi.restoreAllMocks());

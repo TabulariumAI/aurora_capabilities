@@ -30,7 +30,8 @@ describe("useComposition", () => {
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
     expect(useCompositionStore.getState().openSegment).toBe("chain");
     expect(useCapabilityDataStore.getState().getData("composition", "s")).toEqual(data);
-    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Composing document metadata...", phase: "started" }));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Composing document metadata...", phase: "started", progress: { completed: 1, total: 28, unit: "steps" } }));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Composing document metadata...", phase: "started", progress: { completed: 2, total: 28, unit: "steps" } }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Document composition complete.", phase: "completed" }));
   });
 

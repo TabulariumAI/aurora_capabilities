@@ -50,11 +50,13 @@ export function useCompute({ onComplete, onError, onProgress, request, segments,
           operation = "submit";
           progressId = "calculating";
           message = "Calculating document fees...";
-          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
+          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 0, total: 27, unit: "steps" } });
           response = await client.submit(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
           for (let attempt = 0; !complete && attempt < 27; attempt += 1) {
             await wait(request.intervalMs);
+            if (canceled) return;
+            onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: attempt + 1, total: 27, unit: "steps" } });
             operation = "status";
             response = await client.status(request.authToken, request.session);
             if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };

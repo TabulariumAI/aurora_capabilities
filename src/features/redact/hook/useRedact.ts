@@ -41,12 +41,14 @@ export function useRedact({ onComplete, onError, onProgress, request, workerClie
           operation = "submit";
           progressId = "redacting";
           message = "Redacting confidential information...";
-          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
+          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 0, total: 21, unit: "steps" } });
           response = await client.submit(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Redaction submit failed." };
         }
         for (let attempt = 0; !complete && attempt < 21; attempt += 1) {
           await wait(request.intervalMs);
+          if (canceled) return;
+          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: attempt + 1, total: 21, unit: "steps" } });
           operation = "status";
           response = await client.status(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Redaction status check failed." };

@@ -3,6 +3,18 @@ import { describe, expect, it } from "vitest";
 import { useProgress } from "../hook/useProgress";
 
 describe("useProgress", () => {
+  it("retains counters on terminal events and clears a stale counter on restart", () => {
+    const { result } = renderHook(() => useProgress("request-1"));
+
+    act(() => {
+      result.current.receive({ jobId: "manifest", message: "Generating document manifest...", phase: "started", progress: { completed: 8, total: 21, unit: "steps" } });
+      result.current.receive({ jobId: "manifest", message: "Generating document manifest...", phase: "failed", error: "Unavailable" });
+      result.current.receive({ jobId: "manifest", message: "Generating document manifest...", phase: "started" });
+    });
+
+    expect(result.current.jobs).toEqual([{ jobId: "manifest", message: "Generating document manifest...", phase: "started" }]);
+  });
+
   it("completes each active job as the next job begins", () => {
     const { result } = renderHook(() => useProgress("request-1"));
 

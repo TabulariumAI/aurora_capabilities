@@ -52,6 +52,8 @@ describe("useCompute", () => {
     expect(calls).toEqual(["submit", "status", "submit", "status", "data"]);
     expect(useCapabilityDataStore.getState().getData("compute", "s")).toEqual(data);
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Starting fee calculation...", phase: "started" }));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Calculating document fees...", phase: "started", progress: { completed: 0, total: 27, unit: "steps" } }));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Calculating document fees...", phase: "started", progress: { completed: 1, total: 27, unit: "steps" } }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Fee calculation complete.", phase: "completed" }));
   });
 
