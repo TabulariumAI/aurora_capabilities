@@ -140,12 +140,12 @@ describe("ProgressView", () => {
     });
     expect(within(rows[0]).getByTestId("progress-spinner")).toHaveClass("progressview-active");
     expect(within(rows[0]).getByText("Generating manifest...").parentElement).toHaveStyle({ backgroundColor: "var(--accent-surface)" });
-    expect(within(rows[1]).getByLabelText("Completed")).toHaveStyle({
-      backgroundColor: "#ECFDF3",
-      border: "1px solid #15803D",
-      color: "#15803D",
-    });
-    expect(within(rows[2]).getByLabelText("Failed")).toHaveStyle({ backgroundColor: "#FEF2F2", color: "#991B1B" });
+    expect(within(rows[1]).getByLabelText("Completed").style.backgroundColor).toBe("transparent");
+    expect(within(rows[2]).getByLabelText("Failed").style.backgroundColor).toBe("transparent");
+    expect(within(rows[2]).getByLabelText("Failed")).toHaveStyle({ color: "#991B1B" });
+    expect(within(rows[2]).getByLabelText("Failed").querySelector("svg")).toHaveAttribute("fill", "currentColor");
+    expect(within(rows[2]).getByLabelText("Failed").querySelector("svg circle")).toHaveAttribute("r", "12");
+    expect(within(rows[2]).getByLabelText("Failed").querySelector("svg path")).toBeNull();
     expect(within(rows[2]).getByText("Downloading manifest...").parentElement).toHaveStyle({ backgroundColor: "#FEF2F2" });
   });
 
@@ -164,14 +164,11 @@ describe("ProgressView", () => {
     );
 
     const rows = screen.getAllByRole("listitem");
-    expect(within(rows[0]).getByTestId("progress-completed-check")).toBeVisible();
-    expect(within(rows[1]).getByTestId("progress-success-star")).toBeVisible();
-    expect(within(rows[1]).getByTestId("progress-success-star").querySelector("path")).toHaveAttribute("d", "m12 2.5 2.8 5.7 6.3.9-4.6 4.5 1.1 6.3-5.6-3-5.6 3 1.1-6.3-4.6-4.5 6.3-.9L12 2.5Z");
-    expect(within(rows[1]).getByLabelText("Completed")).toHaveAttribute("style", expect.stringContaining("border: 1px solid var(--primary-dark)"));
-    expect(within(rows[1]).getByLabelText("Completed")).toHaveStyle({
-      backgroundColor: "var(--gray-50)",
-      color: "var(--primary-dark)",
-    });
+    expect(within(rows[0]).getByLabelText("Completed").querySelector("svg")!).toBeVisible();
+    expect(within(rows[1]).getByLabelText("Completed").querySelector("svg")!).toBeVisible();
+    expect(within(rows[1]).getByLabelText("Completed").querySelector("svg")!.querySelector("circle")).toHaveAttribute("r", "12");
+    expect(within(rows[1]).getByLabelText("Completed").querySelector("svg")!.querySelector("path")).toBeNull();
+    expect(within(rows[1]).getByLabelText("Completed").style.backgroundColor).toBe("transparent");
     expect(within(rows[0]).getByText("Checking manifest status...").parentElement).toHaveStyle({ backgroundColor: "#ECFDF3" });
     expect(within(rows[1]).getByText("Manifest is ready to download.").parentElement).toHaveStyle({ backgroundColor: "var(--accent-surface)" });
     expect(within(rows[0]).queryByRole("link", { name: "Download manifest" })).not.toBeInTheDocument();

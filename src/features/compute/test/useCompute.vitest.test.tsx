@@ -6,7 +6,7 @@ import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 
 const segments = {
   ACKNOWLEDGMENT: "acknowledgment",
-  COURT: "court",
+  JUDGMENT: "judgment",
   ENDORSEMENT: "endorsement",
   FEE: "configured-fee",
   FEEFACTOR: "factor",

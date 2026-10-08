@@ -58,11 +58,11 @@ describe("ManifestPanel", () => {
     await waitFor(() => expect(screen.getByText("Manifest downloaded.")).toBeInTheDocument());
     const downloaded = screen.getByText("Manifest downloaded.").closest("li");
     expect(downloaded).toHaveAttribute("data-phase", "completed");
-    expect(within(downloaded!).getByLabelText("Completed")).toHaveAttribute("style", expect.stringContaining("border: 1px solid var(--primary-dark)"));
-    expect(within(downloaded!).getByLabelText("Completed")).toHaveStyle({
-      backgroundColor: "var(--gray-50)",
-      color: "var(--primary-dark)",
-    });
+    const indicator = within(downloaded!).getByLabelText("Completed").querySelector("svg")!;
+    expect(indicator).toHaveAttribute("fill", "currentColor");
+    expect(indicator).toHaveAttribute("width", "0.7rem");
+    expect(indicator).toHaveStyle({ color: "#15803d" });
+    expect(indicator.querySelector("path")).toBeNull();
     expect(action.compareDocumentPosition(downloaded!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
     expect(screen.queryByRole("button", { name: /back to start/i })).not.toBeInTheDocument();
