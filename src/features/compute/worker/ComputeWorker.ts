@@ -2,7 +2,7 @@ import type { ComputeResult } from "../../../shared/type/capability.types";
 import { blobJson, capabilityFetch, pollFromResponse } from "../../../shared/worker/capabilityHttp";
 
 export async function submitCompute(apiBaseUrl: string, token: string, session: string, etag: string | null, refresh: boolean) {
-  return pollFromResponse(await capabilityFetch(token, `${apiBaseUrl}/v1/compute/${session}/${refresh ? "recalculate" : "calculate"}`, { method: "POST", body: { etag } }));
+  return pollFromResponse(await capabilityFetch(token, `${apiBaseUrl}/v1/compute/${session}/${refresh ? "recalculate" : "calculate"}`, { method: "POST", body: refresh ? {} : { etag } }));
 }
 
 export async function statusCompute(apiBaseUrl: string, token: string, session: string) {

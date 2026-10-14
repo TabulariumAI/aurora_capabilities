@@ -37,7 +37,7 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
 
     void (async () => {
       try {
-        const etag = await onResource({ resource: "metadata_etag" });
+        const etag = request.refresh ? null : await onResource({ resource: "metadata_etag" });
         if (canceled) return;
         let response = await client.submit(request.authToken, request.session, etag, request.refresh);
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };

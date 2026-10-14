@@ -7,7 +7,7 @@ describe("compute worker client", () => {
   it.each([false, true])("uses the requested compute route with no-store fetch; refresh=%s", async refresh => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "completed", data: "{}" })));
     await createComputeWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1", "metadata-etag", refresh);
-    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(`https://doc.test/v1/compute/s1/${refresh ? "recalculate" : "calculate"}`, expect.objectContaining({ method: "POST", cache: "no-store", body: JSON.stringify({ etag: "metadata-etag" }) }));
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(`https://doc.test/v1/compute/s1/${refresh ? "recalculate" : "calculate"}`, expect.objectContaining({ method: "POST", cache: "no-store", body: JSON.stringify(refresh ? {} : { etag: "metadata-etag" }) }));
   });
 
   it("downloads only Computedata from the returned blob URL", async () => {
@@ -27,6 +27,12 @@ describe("compute worker client", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "processing", data: "" })));
     await createComputeWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1", etag, false);
     expect(fetchMock.mock.calls[0][1]?.body).toBe(JSON.stringify({ etag }));
+  });
+
+  it.each([null, "", "metadata-etag"])("omits metadata eTag on refresh regardless of the supplied value; etag=%s", async etag => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "processing", data: "" })));
+    await createComputeWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1", etag, true);
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith("https://doc.test/v1/compute/s1/recalculate", expect.objectContaining({ body: "{}" }));
   });
 
   it("propagates failed blob downloads", async () => {

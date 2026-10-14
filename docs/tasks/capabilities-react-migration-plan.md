@@ -694,7 +694,7 @@ or error. The factory exposes:
 - redact: `status`, `submit`, `data`
 - manifest: `status`, `submit`, `data`
 
-Every client method takes the token and session explicitly. Compute `submit` also takes the metadata eTag supplied through the host resource callback and the request's `refresh` flag. user_svc owns record Metadata retrieval and preparation. Do not store tokens or sessions in workers.
+Every client method takes the token and session explicitly. Compute `submit` also takes the metadata eTag supplied through the host resource callback for normal opening, or `null` for Refresh, and the request's `refresh` flag. Refresh omits the eTag from the HTTP body. user_svc owns record Metadata retrieval and preparation. Do not store tokens or sessions in workers.
 
 ## Route and Polling Contract
 
@@ -703,13 +703,13 @@ Every client method takes the token and session explicitly. Compute `submit` als
 Routes:
 
 - `POST /v1/compute/{session}/calculate` with `{ "etag": "<metadata-etag-or-null>" }`
-- `POST /v1/compute/{session}/recalculate` with the same body for Compute Refresh
+- `POST /v1/compute/{session}/recalculate` with `{}` for Compute Refresh, omitting the metadata eTag
 - `GET /v1/compute/{session}/status`
 - `GET /v1/compute/{session}/data`
 
 Sequence:
 
-1. Request `{ resource: "metadata_etag" }` through the host, then submit once to `/calculate` for normal Compute or `/recalculate` for Refresh. A pending request retains its operation when reopened.
+1. For normal Compute, request `{ resource: "metadata_etag" }` through the host, then submit once to `/calculate` with that eTag. For Refresh, submit once to `/recalculate` without requesting or sending the metadata eTag. A pending request retains its operation when reopened.
 2. Read status.
 3. Perform at most 27 wait/status iterations, waiting `intervalMs` before each
    status read.
@@ -1255,7 +1255,7 @@ Add feature sequence tests for:
 
 Add explicit tests for:
 
-- compute's single submit with the host-provided metadata eTag
+- compute's single submit with the host-provided metadata eTag on normal opening, and without the eTag on Refresh
 - compute's 28-status maximum
 - compute's Computedata Blob download and failed downloads
 - composition empty-string parse failure

@@ -54,8 +54,11 @@ describe("useCompute", () => {
     else expect(onError).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ operation: "submit", error: expect.objectContaining({ error: "Resource unavailable" }) }));
   });
 
-  it.each([false, true])("requests the metadata etag through the host before submitting; refresh=%s", async refresh => {
-    const onResource = vi.fn(async () => "metadata-etag");
+  it.each([false, true])("requests the metadata eTag only for normal opening; refresh=%s", async refresh => {
+    const onResource = vi.fn(async () => {
+      if (refresh) throw new Error("Refresh must not request metadata");
+      return "metadata-etag";
+    });
     const submit = vi.fn(async () => ({ status: "completed", data: "" }));
     const onComplete = vi.fn();
     renderHook(() => useCompute({
@@ -65,17 +68,18 @@ describe("useCompute", () => {
       workerClient: { submit, status: async () => ({ status: "completed", data: "" }), data: async () => ({ fee_factors: [], fees: [], funds: [] }) },
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
-    expect(onResource).toHaveBeenCalledExactlyOnceWith({ resource: "metadata_etag" });
-    expect(submit).toHaveBeenCalledExactlyOnceWith("t", "s", "metadata-etag", refresh);
+    if (refresh) expect(onResource).not.toHaveBeenCalled();
+    else expect(onResource).toHaveBeenCalledExactlyOnceWith({ resource: "metadata_etag" });
+    expect(submit).toHaveBeenCalledExactlyOnceWith("t", "s", refresh ? null : "metadata-etag", refresh);
   });
-  it("submits once and polls status before retrieving data", async () => {
+  it.each([false, true])("submits once and polls status before retrieving data; refresh=%s", async refresh => {
     const onComplete = vi.fn();
     const onProgress = vi.fn();
     const calls: string[] = [];
     const data = { fee_factors: [], fees: [], funds: [] };
     renderHook(() => useCompute({
       onResource: async () => "metadata-etag",
-      request: { document: "document.pdf", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "compute", refresh, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r", session: "s" },
       onComplete,
       onError: vi.fn(),
       onProgress,
@@ -96,13 +100,13 @@ describe("useCompute", () => {
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Fee calculation complete.", phase: "completed" }));
   });
 
-  it("reports data failures with the data operation", async () => {
+  it.each([false, true])("reports data failures with the data operation; refresh=%s", async refresh => {
     const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const onError = vi.fn();
     const onProgress = vi.fn();
     renderHook(() => useCompute({
       onResource: async () => "metadata-etag",
-      request: { document: "document.pdf", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-data", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "compute", refresh, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-data", session: "s" },
       onComplete: vi.fn(),
       onError,
       onProgress,
@@ -119,10 +123,29 @@ describe("useCompute", () => {
     expect(error).not.toHaveBeenCalled();
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Preparing fee details...", phase: "failed" }));
   });
+
+  it.each(["submit", "status"] as const)("reports refresh %s failures without retrieving data", async operation => {
+    const onError = vi.fn();
+    const onComplete = vi.fn();
+    const workerClient = {
+      submit: vi.fn(async () => ({ status: operation === "submit" ? "error" : "processing", data: "Compute failed" })),
+      status: vi.fn(async () => ({ status: "error", data: "Compute failed" })),
+      data: vi.fn(),
+    };
+    renderHook(() => useCompute({
+      onResource: vi.fn(),
+      request: { document: "document.pdf", authToken: "t", capability: "compute", refresh: true, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "refresh-failure", session: "s" },
+      onComplete, onError, onProgress: vi.fn(), segments, workerClient,
+    }));
+    await waitFor(() => expect(onError).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ operation, error: expect.objectContaining({ error: "Compute failed" }) })));
+    expect(workerClient.data).not.toHaveBeenCalled();
+    expect(onComplete).not.toHaveBeenCalled();
+    expect(useComputeStore.getState().status).toBe("error");
+  });
 });
 
 
-it.each([false, true])("publishes only after data is ready; canceled=%s", async (canceled) => {
+it.each([[false, false], [false, true], [true, false], [true, true]])("publishes only after data is ready; refresh=%s canceled=%s", async (refresh, canceled) => {
   let finish!: (value: typeof data) => void;
   const data = { fee_factors: [], fees: [], funds: [] };
   const workerClient = {
@@ -130,7 +153,7 @@ it.each([false, true])("publishes only after data is ready; canceled=%s", async 
     status: vi.fn(async () => ({ status: "completed", data: null })),
     data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })),
   };
-  const props = { onResource: async () => "metadata-etag", segments, request: { authToken: "t", capability: "compute" as const, refresh: false, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-compute", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
+  const props = { onResource: async () => "metadata-etag", segments, request: { authToken: "t", capability: "compute" as const, refresh, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-compute", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
   const view = renderHook(() => useCompute(props));
   await waitFor(() => expect(workerClient.data).toHaveBeenCalledOnce());
   if (canceled) view.unmount();
@@ -138,7 +161,9 @@ it.each([false, true])("publishes only after data is ready; canceled=%s", async 
   if (canceled) {
     expect(props.onComplete).not.toHaveBeenCalled();
   } else {
+    expect(props.onComplete).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ result: data, session: "event-session" }));
     view.rerender();
+    expect(props.onComplete).toHaveBeenCalledOnce();
     view.unmount();
   }
 });
