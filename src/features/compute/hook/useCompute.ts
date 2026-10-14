@@ -10,7 +10,7 @@ const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isComplete = (status: unknown) => status === "completed";
 const isFailed = (status: unknown) => status === "error";
 
-export function useCompute({ onComplete, onError, onProgress, request, segments, workerClient }: Pick<ComputePanelProps, "onComplete" | "onError" | "request" | "segments" | "workerClient"> & { onProgress(event: ProgressEvent): void }) {
+export function useCompute({ onComplete, onError, onProgress, onResource, request, segments, workerClient }: Pick<ComputePanelProps, "onComplete" | "onError" | "onResource" | "request" | "segments" | "workerClient"> & { onProgress(event: ProgressEvent): void }) {
   const client = useMemo(() => workerClient ?? createComputeWorkerClient({ apiBaseUrl: request.documentApiGatewayUrl }), [request.documentApiGatewayUrl, workerClient]);
 
   useEffect(() => {
@@ -25,7 +25,7 @@ export function useCompute({ onComplete, onError, onProgress, request, segments,
     const fail = (operation: ComputeFailure["operation"], error: unknown) => {
       const failure: ComputeFailure = {
         capability: "compute",
-        error: workerError(error, operation === "data" ? "Retrieve metadata failed." : "Compute request failed."),
+        error: workerError(error, operation === "data" ? "Retrieve fees failed." : "Compute request failed."),
         operation,
         requestId: request.requestId,
         session: request.session,
@@ -37,7 +37,9 @@ export function useCompute({ onComplete, onError, onProgress, request, segments,
 
     void (async () => {
       try {
-        let response = await client.submit(request.authToken, request.session);
+        const etag = await onResource({ resource: "metadata_etag" });
+        if (canceled) return;
+        let response = await client.submit(request.authToken, request.session, etag, request.refresh);
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
         operation = "status";
         progressId = "status";
@@ -47,12 +49,10 @@ export function useCompute({ onComplete, onError, onProgress, request, segments,
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
         let complete = isComplete(response.status);
         if (!complete) {
-          operation = "submit";
+          operation = "status";
           progressId = "calculating";
           message = "Calculating document fees...";
           onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 0, total: 27, unit: "steps" } });
-          response = await client.submit(request.authToken, request.session);
-          if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
           for (let attempt = 0; !complete && attempt < 27; attempt += 1) {
             await wait(request.intervalMs);
             if (canceled) return;

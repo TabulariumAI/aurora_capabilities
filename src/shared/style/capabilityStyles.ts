@@ -38,16 +38,6 @@ export const capabilityStyles = {
     cursor: "not-allowed",
     opacity: 0.45,
   } satisfies CSSProperties,
-  metadataShell: {
-    display: "flex",
-    flex: "1 1 auto",
-    flexDirection: "column",
-    height: "100%",
-    minHeight: 0,
-    minWidth: 0,
-    overflow: "hidden",
-    width: "100%",
-  } satisfies CSSProperties,
   readyPanel: {
     display: "grid",
     gap: "0.75rem",

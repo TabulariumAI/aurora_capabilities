@@ -224,7 +224,7 @@ export function CompositionView({
               }}
               type="button"
             >
-              Link to batch
+              Stage
             </button>
           </div>
         )}

@@ -3,7 +3,6 @@ import type { ProgressEvent } from "../../progressview/type/progress.types";
 import { workerError } from "../../../shared/worker/capabilityHttp";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 import type { RecordFailure, RecordPanelProps } from "../../../shared/type/capability.types";
-import { prepareRecordMetadata } from "../data/recordData";
 import { useRecordStore } from "../store/recordStore";
 import { createRecordWorkerClient } from "../worker/recordWorkerClient";
 
@@ -40,17 +39,11 @@ export function useRecord({ onComplete, onError, onProgress, request, workerClie
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Record status failed." };
         let complete = isComplete(response.status);
         if (!complete) {
-          operation = "compute-data";
-          progressId = "metadata";
-          message = "Preparing endorsement details...";
-          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
-          const metadata = await client.computeData(request.authToken, request.session);
-          if (metadata === "") throw { code: "INVALID_JSON_INPUT_HEAD", error: "Invalid JSON input: missing heading" };
           operation = "submit";
           progressId = "endorsement";
           message = "Creating endorsement pages...";
           onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
-          await client.submit(request.authToken, request.session, prepareRecordMetadata(metadata));
+          await client.submit(request.authToken, request.session);
           progressId = "recording";
           message = "Recording the document now...";
           onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 0, total: 21, unit: "steps" } });

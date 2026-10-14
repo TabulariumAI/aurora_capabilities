@@ -1,4 +1,4 @@
-import type { MetadataCallbacks, MetadataSegments, MetadataPayload } from "aurora-core";
+import type { MetadataCallbacks, MetadataSegments, MetadataPayload, ResourceRequest } from "aurora-core";
 
 export type CapabilityName =
   | "composition"
@@ -23,11 +23,11 @@ export type CapabilityError = {
 
 export type ComputeOperation = "submit" | "status" | "data";
 export type CompositionOperation = "submit" | "status" | "data" | "options";
-export type RecordOperation = "status" | "compute-data" | "submit" | "data";
+export type RecordOperation = "status" | "submit" | "data";
 export type RedactOperation = "status" | "submit" | "data";
 export type ManifestOperation = "status" | "submit" | "data";
 
-export type ComputeResult = MetadataPayload | "";
+export type ComputeResult = Pick<MetadataPayload, "fee_factors" | "fees" | "funds">;
 export type CompositionResult = Pick<MetadataPayload, "chain" | "history">;
 export type CompositionBatch =
   | { group: "user"; batch: { code: string; id: string; name: string } }
@@ -53,7 +53,7 @@ export type CapabilityRequestBase = {
   session: string;
 };
 
-export type ComputeRequest = CapabilityRequestBase & { capability: "compute" };
+export type ComputeRequest = CapabilityRequestBase & { capability: "compute"; refresh: boolean };
 export type CompositionRequest = CapabilityRequestBase & { capability: "composition" };
 export type RecordRequest = CapabilityRequestBase & {
   capability: "record";
@@ -146,7 +146,7 @@ export type CapabilityPoll = {
 };
 
 export type ComputeWorkerClient = {
-  submit(token: string, session: string): Promise<CapabilityPoll>;
+  submit(token: string, session: string, etag: string | null, refresh: boolean): Promise<CapabilityPoll>;
   status(token: string, session: string): Promise<CapabilityPoll>;
   data(token: string, session: string): Promise<ComputeResult>;
 };
@@ -160,8 +160,7 @@ export type CompositionWorkerClient = {
 
 export type RecordWorkerClient = {
   status(token: string, session: string): Promise<CapabilityPoll>;
-  computeData(token: string, session: string): Promise<ComputeResult>;
-  submit(token: string, session: string, metadata: MetadataPayload): Promise<CapabilityPoll>;
+  submit(token: string, session: string): Promise<CapabilityPoll>;
   data(token: string, session: string): Promise<RecordResult>;
 };
 
@@ -178,7 +177,7 @@ export type ManifestWorkerClient = {
 };
 
 export type ComputePanelProps = {
-  callbacks: MetadataCapabilityCallbacks;
+  onResource(request: ResourceRequest): Promise<string | null>;
   onComplete: (terminal: CapabilityComplete<"compute", ComputeResult>) => void;
   onEndorse: () => void;
   onError: (failure: ComputeFailure) => void;

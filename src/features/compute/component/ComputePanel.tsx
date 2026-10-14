@@ -17,12 +17,10 @@ export function ComputePanel(props: ComputePanelProps): JSX.Element {
   if (store.status === "ready" && result != null) {
     return (
       <ComputeDetails
-        callbacks={props.callbacks}
-        metadata={result}
+        data={result}
         onEndorse={props.onEndorse}
         openSegment={store.openSegment}
         segments={props.segments}
-        session={props.request.session}
         setOpenSegment={useComputeStore.getState().setOpenSegment}
         shortcuts={shortcutMap}
       />

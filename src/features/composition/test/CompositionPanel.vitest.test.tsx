@@ -40,7 +40,7 @@ const result = {
     encumbrance: [{ amount: "$2,000.00", date: "2025-01-03", enc_type: "Lien", parties: "Lienholder LLC", status: "Active" }],
     mortgage: [{ amount: "$480,000.00", borrowers: "Borrower Family Trust", date: "2025-01-02", lender: "Citywide Bank", status: "Active" }],
   },
-  indexes: [{ aspect: "parcel_address", segment: "property", value: "Hidden property" }],
+  indexes: [{ aspect: "property_address", segment: "property", value: "Hidden property" }],
 };
 
 describe("CompositionPanel", () => {
@@ -103,7 +103,7 @@ describe("CompositionPanel", () => {
     const onViewBatch = vi.fn();
     const options = vi.fn(async () => ["10 Main Street", "APN-123"]);
     render(<CompositionPanel canLink callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={onViewBatch} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options }} />);
-    const link = await screen.findByRole("button", { name: "Link to batch" });
+    const link = await screen.findByRole("button", { name: "Stage" });
     await waitFor(() => expect(options).toHaveBeenCalledWith("t", "s"));
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     expect(link).toHaveAttribute("type", "button");
@@ -121,10 +121,10 @@ describe("CompositionPanel", () => {
     expect(onViewBatch).toHaveBeenCalledWith(linked);
   });
 
-  it("keeps Link available after cancelling the dialog, without reporting failure", async () => {
+  it("keeps Stage available after cancelling the dialog, without reporting failure", async () => {
     const onLinkBatch = vi.fn(async () => null);
     render(<CompositionPanel canLink callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
-    const link = await screen.findByRole("button", { name: "Link to batch" });
+    const link = await screen.findByRole("button", { name: "Stage" });
     fireEvent.click(link);
     await waitFor(() => expect(onLinkBatch).toHaveBeenCalledWith("user", []));
     await waitFor(() => expect(link).toBeEnabled());
@@ -134,9 +134,9 @@ describe("CompositionPanel", () => {
 
   it("allows retry after the host rejects batch selection", async () => {
     render(<CompositionPanel canLink callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={async () => { throw new Error("Link unavailable"); }} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
-    fireEvent.click(await screen.findByRole("button", { name: "Link to batch" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Stage" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("Link unavailable");
-    expect(screen.getByRole("button", { name: "Link to batch" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Stage" })).toBeEnabled();
   });
 
   it("reports batch-name option failures through onError", async () => {
@@ -159,14 +159,14 @@ describe("CompositionPanel", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent("Composition unavailable");
     expect(screen.getAllByRole("listitem").at(-1)).toHaveAttribute("data-phase", "failed");
     expect(screen.getByText("COMPOSING DOCUMENT METADATA")).toBeVisible();
-    expect(screen.queryByRole("button", { name: "Link to batch" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Stage" })).not.toBeInTheDocument();
   });
 });
 
 it("disables linking when the session is no longer Pending", async () => {
   const onLinkBatch = vi.fn();
   render(<CompositionPanel canLink={false} callbacks={{}} request={request} onComplete={vi.fn()} onError={vi.fn()} onLinkBatch={onLinkBatch} onViewBatch={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => result, options: async () => [] }} />);
-  const link = await screen.findByRole("button", { name: "Link to batch" });
+  const link = await screen.findByRole("button", { name: "Stage" });
   expect(link).toBeDisabled();
   fireEvent.click(link);
   expect(onLinkBatch).not.toHaveBeenCalled();

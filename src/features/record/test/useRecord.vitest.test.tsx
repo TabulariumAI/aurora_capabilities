@@ -21,7 +21,6 @@ describe("useRecord", () => {
       onProgress,
       workerClient: {
         status: async () => ({ data: null, status: "completed" }),
-        computeData: async () => ({ heading: { class: "deed", title: "Title" } }),
         submit: async () => ({ data: null, status: "processing" }),
         data: async () => data,
       },
@@ -32,7 +31,7 @@ describe("useRecord", () => {
     expect(useCapabilityDataStore.getState().getData("record", "s")).toEqual(data);
   });
 
-  it("reports compute failures with the compute-data operation", async () => {
+  it("reports endorsement preparation failures from user_svc as submit failures", async () => {
     const onError = vi.fn();
     const onProgress = vi.fn();
     renderHook(() => useRecord({
@@ -42,14 +41,13 @@ describe("useRecord", () => {
       onProgress,
       workerClient: {
         status: async () => ({ data: null, status: "processing" }),
-        computeData: async () => { throw new Error("Compute failed"); },
-        submit: vi.fn(),
+        submit: async () => { throw new Error("Compute failed"); },
         data: vi.fn(),
       },
     }));
 
-    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "compute-data" })));
-    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Preparing endorsement details...", phase: "failed" }));
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "submit" })));
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Creating endorsement pages...", phase: "failed" }));
   });
 
   it("advances the recording timer counter without adding status requests", async () => {
@@ -63,7 +61,6 @@ describe("useRecord", () => {
       onProgress,
       workerClient: {
         status: async () => ({ data: null, status: ++checks > 1 ? "completed" : "processing" }),
-        computeData: async () => ({ heading: { class: "deed" } }),
         submit: async () => ({ data: null, status: "processing" }),
         data: async () => ({ pdf_confirmation: "confirmation.pdf", pdf_record: "record.pdf" }),
       },
@@ -84,7 +81,7 @@ it.each([false, true])("publishes only after data is ready; canceled=%s", async 
   const workerClient = {
     submit: vi.fn(async () => ({ status: "completed", data: null })),
     status: vi.fn(async () => ({ status: "completed", data: null })),
-    data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })), computeData: vi.fn(),
+    data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })),
   };
   const props = { request: { authToken: "t", capability: "record" as const, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-record", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
   const view = renderHook(() => useRecord(props));

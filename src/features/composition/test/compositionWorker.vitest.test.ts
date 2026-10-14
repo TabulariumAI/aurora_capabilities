@@ -14,8 +14,8 @@ describe("composition worker client", () => {
     const fetchMock = vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(new Response(JSON.stringify({ data: sasUrl, status: "completed" })))
       .mockResolvedValueOnce(new Response(JSON.stringify({ indexes: [
-        { aspect: "parcel_address", value: "10 Main Street" },
-        { aspect: "parcel_id", value: "APN-123" },
+        { aspect: "property_address", value: "10 Main Street" },
+        { aspect: "property_id", value: "APN-123" },
         { aspect: "parcel_reference", value: "REF-9" },
       ] })));
 

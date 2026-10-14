@@ -5,8 +5,9 @@ describe("record worker client", () => {
   afterEach(() => vi.restoreAllMocks());
   it("submits endorsement choices to the record route", async () => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "processing", data: null })));
-    await createRecordWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1", { heading: { class: "deed", title: "Title" } });
+    await createRecordWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1");
     expect(fetchMock).toHaveBeenCalledWith("https://doc.test/v1/record/s1/endorsement", expect.objectContaining({ method: "POST", cache: "no-store", body: expect.stringContaining("pdf_confirmation") }));
+    expect(JSON.parse(String(fetchMock.mock.calls[0][1]?.body))).toEqual({ choices: { pdf_confirmation: true, pdf_record: true, tif_record: false } });
   });
 
   it("returns every record artifact URL unchanged", async () => {

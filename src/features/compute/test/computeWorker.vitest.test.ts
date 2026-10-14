@@ -4,17 +4,41 @@ import { createComputeWorkerClient } from "../worker/computeWorkerClient";
 describe("compute worker client", () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it("uses the compute route with no-store fetch", async () => {
+  it.each([false, true])("uses the requested compute route with no-store fetch; refresh=%s", async refresh => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "completed", data: "{}" })));
-    await createComputeWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1");
-    expect(fetchMock).toHaveBeenCalledWith("https://doc.test/v1/compute/s1/calculate", expect.objectContaining({ method: "POST", cache: "no-store" }));
+    await createComputeWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1", "metadata-etag", refresh);
+    expect(fetchMock).toHaveBeenCalledExactlyOnceWith(`https://doc.test/v1/compute/s1/${refresh ? "recalculate" : "calculate"}`, expect.objectContaining({ method: "POST", cache: "no-store", body: JSON.stringify({ etag: "metadata-etag" }) }));
   });
 
-  it("returns JSON data from the compute data route", async () => {
-    const data = { heading: { class: "deed", title: "Title" } };
-    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "completed", data: JSON.stringify(data) })));
+  it("downloads only Computedata from the returned blob URL", async () => {
+    const data = { fee_factors: [], fees: [{ name: "Recording", amount: "40", formula: "40" }], funds: [] };
+    const path = "https://blob.test/s1/computedata.json?sig=test";
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "completed", data: path })))
+      .mockResolvedValueOnce(new Response(JSON.stringify(data)));
 
     await expect(createComputeWorkerClient({ apiBaseUrl: "https://doc.test" }).data("token", "s1")).resolves.toEqual(data);
     expect(fetchMock).toHaveBeenCalledWith("https://doc.test/v1/compute/s1/data", expect.objectContaining({ method: "GET", cache: "no-store" }));
+    expect(fetchMock).toHaveBeenLastCalledWith(path);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([null, "", "different"])("sends metadata etag %s unchanged", async (etag) => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "processing", data: "" })));
+    await createComputeWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1", etag, false);
+    expect(fetchMock.mock.calls[0][1]?.body).toBe(JSON.stringify({ etag }));
+  });
+
+  it("propagates failed blob downloads", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "completed", data: "https://blob.test/computedata.json" })))
+      .mockResolvedValueOnce(new Response("Denied", { status: 403 }));
+    await expect(createComputeWorkerClient({ apiBaseUrl: "https://doc.test" }).data("token", "s1")).rejects.toMatchObject({ status: 403 });
+  });
+  it("rejects a null Computedata payload", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "completed", data: "https://blob.test/computedata.json" })))
+      .mockResolvedValueOnce(new Response("null"));
+    await expect(createComputeWorkerClient({ apiBaseUrl: "https://doc.test" }).data("token", "s1")).rejects.toMatchObject({ code: "parse_error" });
   });
 });

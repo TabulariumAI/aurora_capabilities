@@ -105,9 +105,9 @@ test("compute formats fees and funds and confirms endorsement", async ({ page },
 
   await expect(root.getByTestId("progress-view")).toHaveCount(0);
   await expect(root.locator("[data-metadata-context='true']")).toHaveCount(0);
-  const feeFactors = root.getByRole("button", { name: "Fee Factors" });
-  const fees = root.getByRole("button", { name: "Fees" });
-  const funds = root.getByRole("button", { name: "Funds" });
+  const feeFactors = root.getByRole("button", { name: "Factors" });
+  const fees = root.getByRole("button", { name: "Fees", exact: true });
+  const funds = root.getByRole("button", { name: "Funds", exact: true });
   await expect(feeFactors).toBeVisible();
   await expect(feeFactors.locator("..").locator(":scope > span")).toHaveText("1");
   await expect(fees).toBeVisible();
@@ -125,6 +125,88 @@ test("compute formats fees and funds and confirms endorsement", async ({ page },
   await expect(root.getByRole("button", { name: "Endorse" })).toBeVisible();
   await root.screenshot({ path: testInfo.outputPath("compute-ready.png") });
 });
+
+for (const width of [390, 840]) {
+  test(`compute controls fit and confirm without changing data at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto("/?capability=compute&state=ready");
+    const root = page.getByRole("region", { name: "Compute", exact: true });
+    const total = root.getByRole("group", { name: "Compute total" });
+    await expect(total).toContainText("$125.00");
+    await expect(root.getByRole("alert")).toHaveText("Fees ($125.00) and Funds ($75.00) do not match.");
+    const alerts: string[] = [];
+    page.on("dialog", async dialog => {
+      alerts.push(dialog.message());
+      await dialog.accept();
+    });
+    for (const [section, name, amount, formula] of [
+      ["Fees", "Recording fee", "$125.00", "base + pages"],
+      ["Funds", "General fund", "$75.00", "flat"],
+    ]) {
+      await root.getByRole("button", { name: section, exact: true }).click();
+      await expect(total).toBeVisible();
+      for (const action of ["Reprocess", "Clear", "Add"]) {
+        const button = root.getByRole("button", { name: `${action} ${section}`, exact: true });
+        const count = alerts.length;
+        await button.click();
+        expect(alerts).toHaveLength(count);
+        await root.getByRole("button", { name: "Confirm", exact: true }).click();
+        await expect.poll(() => alerts.length).toBe(count + 1);
+        expect(alerts.at(-1)).toBe(`${action} ${section}`);
+      }
+      const row = root.locator("article").filter({ hasText: name });
+      await expect(row.getByText(amount, { exact: true })).toHaveCSS("text-align", "right");
+      for (const action of ["Delete", "Edit"]) {
+        const button = row.getByRole("button", { name: `${action} ${name}`, exact: true });
+        const count = alerts.length;
+        await button.focus();
+        await page.keyboard.press("Enter");
+        expect(alerts).toHaveLength(count);
+        await page.keyboard.press("Enter");
+        await expect.poll(() => alerts.length).toBe(count + 1);
+        expect(alerts.at(-1)).toBe(`${action} ${name}: ${amount}`);
+      }
+      const count = alerts.length;
+      await expect(row.getByRole("button", { name: `Formula ${name}`, exact: true })).toHaveCount(0);
+      await expect(row).not.toContainText("Formula:");
+      await row.getByRole("button", { name: "Expand details", exact: true }).click();
+      await expect(row).toContainText(`Formula: ${formula}`);
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      expect(alerts).toHaveLength(count);
+      await row.screenshot({ path: testInfo.outputPath(`compute-expanded-${section.toLowerCase()}-${width}.png`) });
+      await row.getByRole("button", { name: "Collapse details", exact: true }).click();
+      await expect(row).not.toContainText("Formula:");
+      expect(await root.evaluate(node => node.scrollWidth <= node.clientWidth)).toBe(true);
+      const boxes = await row.evaluate(node => Array.from(node.querySelectorAll("button, .compute-value")).map(element => element.getBoundingClientRect().toJSON()));
+      for (const box of boxes) {
+        expect(box.left).toBeGreaterThanOrEqual(0);
+        expect(box.right).toBeLessThanOrEqual(width);
+      }
+      const valueBox = await row.locator(".compute-value").boundingBox();
+      const actionsBox = await row.getByRole("group").boundingBox();
+      expect(valueBox!.x + valueBox!.width).toBeLessThanOrEqual(actionsBox!.x);
+      expect(Math.abs(valueBox!.y + valueBox!.height / 2 - actionsBox!.y - actionsBox!.height / 2)).toBeLessThanOrEqual(1);
+      await root.screenshot({ path: testInfo.outputPath(`compute-${section.toLowerCase()}-${width}.png`) });
+    }
+    await root.getByRole("button", { name: "Factors", exact: true }).click();
+    await expect(root.getByText("4", { exact: true })).toHaveCSS("text-align", "right");
+    const factorRight = await root.getByText("4", { exact: true }).evaluate(node => node.getBoundingClientRect().right);
+    await root.getByRole("button", { name: "Fees", exact: true }).click();
+    const feeRight = await root.locator("article").getByText("$125.00", { exact: true }).evaluate(node => node.getBoundingClientRect().right);
+    await root.getByRole("button", { name: "Funds", exact: true }).click();
+    const fundRight = await root.getByText("$75.00", { exact: true }).evaluate(node => node.getBoundingClientRect().right);
+    expect(factorRight).toBeGreaterThan(feeRight);
+    expect(Math.abs(feeRight - fundRight)).toBeLessThanOrEqual(1);
+    await root.getByRole("button", { name: "Factors", exact: true }).click();
+    const factorRow = root.locator("article").filter({ hasText: "Page count" });
+    const copyBox = await factorRow.getByRole("button", { name: "Copy value 4", exact: true }).boundingBox();
+    const expandBox = await factorRow.getByRole("button", { name: "Expand details", exact: true }).boundingBox();
+    expect(expandBox!.x - copyBox!.x - copyBox!.width).toBeLessThanOrEqual(3);
+    await factorRow.getByRole("button", { name: "Expand details", exact: true }).click();
+    await expect(factorRow).toContainText("Explanation: Counted pages.");
+    await root.screenshot({ path: testInfo.outputPath(`compute-factors-${width}.png`) });
+  });
+}
 
 test("manifest renders connected active progress", async ({ page }, testInfo) => {
   await page.goto("/?capability=manifest&state=pending");

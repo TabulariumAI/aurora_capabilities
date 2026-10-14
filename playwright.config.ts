@@ -5,6 +5,7 @@ export default defineConfig({
   testMatch: "capabilities.visual.spec.ts",
   use: {
     ...devices["Desktop Chrome"],
+    channel: "msedge",
     viewport: { width: 1440, height: 900 }
   },
   webServer: {

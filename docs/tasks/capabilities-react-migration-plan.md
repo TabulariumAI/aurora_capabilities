@@ -186,11 +186,11 @@ export type CapabilityError = {
 
 export type ComputeOperation = "submit" | "status" | "data";
 export type CompositionOperation = "submit" | "status" | "data";
-export type RecordOperation = "status" | "compute-data" | "submit" | "data";
+export type RecordOperation = "status" | "submit" | "data";
 export type RedactOperation = "status" | "submit" | "data";
 export type ManifestOperation = "status" | "submit" | "data";
 
-export type ComputeResult = MetadataPayload | "";
+export type ComputeResult = Pick<MetadataPayload, "fee_factors" | "fees" | "funds">;
 export type CompositionResult = MetadataPayload;
 
 export type RecordHeading = {
@@ -233,6 +233,7 @@ export type CapabilityRequestBase = {
 
 export type ComputeRequest = CapabilityRequestBase & {
   capability: "compute";
+  refresh: boolean;
 };
 
 export type CompositionRequest = CapabilityRequestBase & {
@@ -339,7 +340,7 @@ export type CapabilityPoll = {
 };
 
 export type ComputeWorkerClient = {
-  submit(token: string, session: string): Promise<CapabilityPoll>;
+  submit(token: string, session: string, etag: string | null, refresh: boolean): Promise<CapabilityPoll>;
   status(token: string, session: string): Promise<CapabilityPoll>;
   data(token: string, session: string): Promise<ComputeResult>;
 };
@@ -352,11 +353,9 @@ export type CompositionWorkerClient = {
 
 export type RecordWorkerClient = {
   status(token: string, session: string): Promise<CapabilityPoll>;
-  computeData(token: string, session: string): Promise<ComputeResult>;
   submit(
     token: string,
     session: string,
-    metadata: MetadataPayload,
   ): Promise<CapabilityPoll>;
   data(token: string, session: string): Promise<RecordResult>;
 };
@@ -374,7 +373,7 @@ export type ManifestWorkerClient = {
 };
 
 export type ComputePanelProps = {
-  callbacks: MetadataCapabilityCallbacks;
+  onResource(request: ResourceRequest): Promise<string | null>;
   onComplete: (
     terminal: CapabilityComplete<"compute", ComputeResult>,
   ) => void;
@@ -456,7 +455,6 @@ src/
     component/
       CapabilityLoading.tsx
       DeliveryNotice.tsx
-      MetadataResult.tsx
     hook/
       useLoadingMessages.ts
     style/
@@ -525,8 +523,8 @@ src/
       test/useManifest.vitest.test.tsx
 ```
 
-`CapabilityLoading` is shared by all five features. `MetadataResult` is shared
-only by compute and composition. `DeliveryNotice` is shared only by record,
+`CapabilityLoading` is shared by all five features. Compute owns its fiscal UI.
+`DeliveryNotice` is shared only by record,
 redact, and manifest. `useLoadingMessages` is shared only by the three dialog
 features.
 
@@ -553,7 +551,7 @@ creation, host storage access, alerts, or worker bootstrap.
 | `document_web/src/domains/manifest/svc/manifest_service.js` | `features/manifest/hook/useManifest.ts`, store, and processing tests |
 | `document_web/src/domains/manifest/shell/manifestdialog.js` | `features/manifest/component/ManifestPanel.tsx` and shared styles |
 | typing behavior in `document_web/src/domains/shared/shell/base/messagebar.js` | `shared/hook/useLoadingMessages.ts` and `CapabilityLoading.tsx` |
-| metadata section behavior in the compute/composition controllers and legacy metadata renderer | `shared/component/MetadataResult.tsx` using the exported `aurora-core` `MetadataPanel` |
+| fiscal section behavior in Compute | `features/compute/component/ComputeDetails.tsx` with Compute-owned sections, rows, icons, and styles |
 
 Translate the active inline visual values from the three legacy dialog files
 and their loading stacks into `shared/style/capabilityStyles.ts` without
@@ -681,8 +679,7 @@ Data parsing must match the current worker helper:
 - string data is trimmed and JSON parsed
 - other primitive data becomes `{}`
 
-The only exception is compute data, including record's compute-data call:
-preserve an exact empty string as `""` instead of parsing it.
+Compute data returns a Computedata Blob URL. Download its JSON with the shared Blob reader. Record does not retrieve compute data from the browser.
 
 Create one module Web Worker client factory per feature. Each factory takes
 `{ apiBaseUrl: string }`. Match `aurora_chat`: each client command creates
@@ -693,12 +690,11 @@ or error. The factory exposes:
 
 - compute: `submit`, `status`, `data`
 - composition: `submit`, `status`, `data`
-- record: `status`, `computeData`, `submit`, `data`
+- record: `status`, `submit`, `data`
 - redact: `status`, `submit`, `data`
 - manifest: `status`, `submit`, `data`
 
-Every client method takes the token and session explicitly. Record `submit`
-also takes the prepared metadata. Do not store tokens or sessions in workers.
+Every client method takes the token and session explicitly. Compute `submit` also takes the metadata eTag supplied through the host resource callback and the request's `refresh` flag. user_svc owns record Metadata retrieval and preparation. Do not store tokens or sessions in workers.
 
 ## Route and Polling Contract
 
@@ -706,22 +702,22 @@ also takes the prepared metadata. Do not store tokens or sessions in workers.
 
 Routes:
 
-- `POST /v1/compute/{session}/calculate`, no body
+- `POST /v1/compute/{session}/calculate` with `{ "etag": "<metadata-etag-or-null>" }`
+- `POST /v1/compute/{session}/recalculate` with the same body for Compute Refresh
 - `GET /v1/compute/{session}/status`
 - `GET /v1/compute/{session}/data`
 
 Sequence:
 
-1. Submit.
+1. Request `{ resource: "metadata_etag" }` through the host, then submit once to `/calculate` for normal Compute or `/recalculate` for Refresh. A pending request retains its operation when reopened.
 2. Read status.
-3. If status is not complete, submit a second time.
-4. Perform at most 27 wait/status iterations, waiting `intervalMs` before each
+3. Perform at most 27 wait/status iterations, waiting `intervalMs` before each
    status read.
-5. Fail after the twenty-seventh incomplete iteration.
-6. Read data only after completed status.
+4. Fail after the twenty-seventh incomplete iteration.
+5. Read the Computedata SAS URL and download its JSON only after completed status.
 
 This produces at most 28 status calls. Status matching is case-sensitive:
-`"error"` fails and `"completed"` completes. Preserve compute data `""`.
+`"error"` fails and `"completed"` completes. Computedata contains only fee factors, fees, and funds.
 
 ### Composition
 
@@ -748,23 +744,17 @@ completes. An empty composition data string is a parsing failure.
 Routes:
 
 - `GET /v1/record/{session}/status`
-- `GET /v1/compute/{session}/data`
 - `POST /v1/record/{session}/endorsement`
 - `GET /v1/record/{session}/data`
 
 Sequence:
 
 1. Read record status.
-2. If status is already completed, skip compute data and submit.
-3. Otherwise read compute data and require `heading`.
-4. Set `heading.number` to
-   `Math.floor(10000 + Math.random() * 90000).toString()`.
-5. Set `heading.date` to `new Date().toISOString().split("T")[0]`.
-6. Submit exactly:
+2. If status is already completed, skip submit.
+3. Otherwise submit endorsement choices. user_svc retrieves full compute Metadata and prepares the recording date and number.
 
 ```json
 {
-  "data": "<prepared metadata object>",
   "choices": {
     "pdf_confirmation": true,
     "pdf_record": true,
@@ -773,9 +763,8 @@ Sequence:
 }
 ```
 
-7. Perform at most 21 wait/status iterations, incrementing the iteration before
-   waiting and reading status.
-8. Read record data only after completed status.
+4. Perform at most 21 wait/status iterations, incrementing the iteration before waiting and reading status.
+5. Read record data only after completed status.
 
 Validate a record result as an object containing:
 
@@ -846,8 +835,7 @@ Use these exact timeout codes and messages:
 
 Use these current validation failures:
 
-- record metadata without a heading before submit:
-  `INVALID_JSON_INPUT_HEAD` /
+- user_svc rejects stored compute Metadata without a heading before forwarding endorsement:
   `Invalid JSON input: missing heading`
 - record data that is not an object:
   `validation_error` /
@@ -871,7 +859,7 @@ Preserve the current service-layer error mapping:
 - composition status with service status `error` uses
   `COMPOSITION_ERR` /
   `An error occurred during composition: ${response.data.data}`
-- record status, compute-data, and submit use the worker/HTTP error directly
+- record status and submit use the worker/HTTP error directly
 - record data maps any worker/client rejection to
   `RETRIEVE_METADATA_FAILED` /
   `Retrieve metadata failed.`
@@ -899,28 +887,26 @@ DOM from the package.
 
 Keep the existing package-owned `features/progressview` timeline. Core does not export a progress bar. Preserve its existing phase, message, and completion behavior and regression tests.
 
-### Compute metadata
+### Compute data
 
-Render the exported `aurora-core` `MetadataPanel`.
+Render Computedata through `ComputeDetails`, with Compute-owned sections, rows, icons, and styles. Reuse the shared `ConfButton` primitive for confirmation.
 
-- map result `""` to `{}`; otherwise use the returned metadata object
-- pass `getPanelData(metadata)` as `panelData`
-- pass `choices={null}`
-- pass stable empty `confirmedCodes` and `removedCodes` sets
-- pass `selectedIndex={null}`
-- map capability status `idle/loading/ready/error` to metadata status
-  `idle/loading/success/error`
+- download the Computedata Blob URL returned by user_svc
+- render only `fee_factors`, `fees`, and `funds`
 - pass the feature store's `openSegment` and `setOpenSegment`
 - default open segment: `FEE`
-- hide `CHAIN` and `HISTORY`
-- show all remaining base sections without choice filtering
-- show empty sections
-- disable confirm, drop, refine, and reprocess actions
-- pass only page, address, and legal callbacks
-- do not expose index or segment mutation actions
+- hide the base document sections and document heading
+- show the existing empty states for optional fiscal collections
+- retain the Endorse action; user_svc prepares full compute Metadata for recording
+- label the factor section `Factors` and right-align all amounts
+- add Reprocess, Clear, and Add confirmation controls to the Fees and Funds headers
+- right-align amounts and keep controls on the row; Fees and Funds share a value column, while Factors use a compact Copy/Expand area with their values farther right
+- order fee/fund controls as Copy, Delete, Edit, and Expand
+- Delete and Edit use confirmation and informational alerts; Expand shows the formula and available explanation, with no Formula icon or callout
+- retain immediate copy and expandable explanations
+- show Total below Funds and above Endorse regardless of the expanded section; sum fees and funds in cents and show both amounts in an error below Total when they differ
 - show shortcut underlines using the exact map below
 - do not bind global keyboard shortcuts
-- treat compute result `""` as empty metadata
 
 ### Composition metadata
 
@@ -1269,13 +1255,13 @@ Add feature sequence tests for:
 
 Add explicit tests for:
 
-- compute's second submit after its first incomplete status
+- compute's single submit with the host-provided metadata eTag
 - compute's 28-status maximum
-- compute's accepted empty-string result
+- compute's Computedata Blob download and failed downloads
 - composition empty-string parse failure
 - record completed-before-submit path
-- record compute-data preparation, exact random number formula, UTC date, exact
-  choices body, and 21-iteration limit
+- user_svc record Metadata preparation, UTC date, recording number range, exact
+  choices body, and client 21-iteration limit
 - record `document` and `cover` validation with no aliases
 - redact lowercase status and both failure statuses
 - redact blob-name result

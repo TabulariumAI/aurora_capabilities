@@ -7,6 +7,8 @@ It is a host-integrated package. The host provides authentication, API gateway c
 ## Features
 
 - Compute document capability results
+- Compute owns its Factors, Fees, and Funds UI. Fees and Funds share a right-aligned value column; Factors use compact Copy/Expand controls with their values farther right. Fee/fund row controls follow Copy, Delete, Edit, Expand. Expand shows the formula and available explanation; confirmed header actions, Delete, and Edit currently show informational alerts.
+- Compute displays Total below Funds regardless of the expanded section. It sums fee amounts and shows an error below Total when the separately calculated fund total differs.
 - Compose document outputs
 - Record and download confirmation, PDF, and TIFF outputs
 - Redact document outputs

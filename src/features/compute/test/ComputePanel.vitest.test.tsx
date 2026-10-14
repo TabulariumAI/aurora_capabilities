@@ -9,7 +9,7 @@ afterEach(() => {
 
 describe("ComputePanel", () => {
   it("renders fee calculation progress while the worker is pending", async () => {
-    render(<ComputePanel callbacks={{}} request={{ document: "document.pdf", authToken: "t", capability: "compute", documentApiGatewayUrl: "u", intervalMs: 1_000, requestId: "r-cp-progress", session: "s" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={vi.fn()} onError={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "processing" }), status: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
+    render(<ComputePanel onResource={async () => "metadata-etag"} request={{ document: "document.pdf", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs: 1_000, requestId: "r-cp-progress", session: "s" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={vi.fn()} onError={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "processing" }), status: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
 
     expect(await screen.findByText("CALCULATING FEES AND FUNDS")).toBeVisible();
     expect(screen.getByText("I’ll keep you updated as I calculate document fees.")).toBeVisible();
@@ -19,11 +19,11 @@ describe("ComputePanel", () => {
   });
 
   it("replaces progress rows for a new fee calculation", async () => {
-    const request = { document: "document.pdf", authToken: "t", capability: "compute" as const, documentApiGatewayUrl: "u", intervalMs: 10_000, session: "s" };
-    const view = render(<ComputePanel callbacks={{}} request={{ ...request, requestId: "compute-1" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={vi.fn()} onError={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "processing" }), status: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
+    const request = { document: "document.pdf", authToken: "t", capability: "compute" as const, refresh: false, documentApiGatewayUrl: "u", intervalMs: 10_000, session: "s" };
+    const view = render(<ComputePanel onResource={async () => "metadata-etag"} request={{ ...request, requestId: "compute-1" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={vi.fn()} onError={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "processing" }), status: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
 
     await screen.findByText("Calculating document fees...");
-    view.rerender(<ComputePanel callbacks={{}} request={{ ...request, requestId: "compute-2" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={vi.fn()} onError={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "processing" }), status: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
+    view.rerender(<ComputePanel onResource={async () => "metadata-etag"} request={{ ...request, requestId: "compute-2" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={vi.fn()} onError={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "processing" }), status: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
 
     await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(3));
     expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("Starting fee calculation...");
@@ -31,12 +31,12 @@ describe("ComputePanel", () => {
 
   it("renders fee details directly without the document title or progress view", async () => {
     const onEndorse = vi.fn();
-    render(<ComputePanel callbacks={{}} request={{ document: "document.pdf", authToken: "t", capability: "compute", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-cp", session: "s" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={onEndorse} onError={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => ({ chain: [{ class: "deed", required: "true", role: "owner", title: "Hidden owner" }], fee_factors: [{ amount: "40", code: "factor-1", explanation: "Taxable consideration.", name: "Consideration" }], fees: [{ amount: "40", code: "fee-1", explanation: "County recording charge.", formula: "base + pages", name: "Recording fee" }, { amount: "$203.50", code: "fee-2", explanation: "Additional county charge.", formula: "flat", name: "Additional fee" }], funds: [{ amount: "510", code: "fund-1", explanation: "Archive allocation.", formula: "flat", name: "Archive fund" }], heading: { class: "deed", title: "Title" }, history: { conveyance: [] } }) }} />);
-    await waitFor(() => expect(screen.getByRole("button", { name: /Fee Factors/i })).toBeVisible());
+    render(<ComputePanel onResource={async () => "metadata-etag"} request={{ document: "document.pdf", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-cp", session: "s" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={onEndorse} onError={vi.fn()} workerClient={{ submit: async () => ({ data: null, status: "completed" }), status: async () => ({ data: null, status: "completed" }), data: async () => ({ chain: [{ class: "deed", required: "true", role: "owner", title: "Hidden owner" }], fee_factors: [{ amount: "40", code: "factor-1", explanation: "Taxable consideration.", name: "Consideration" }], fees: [{ amount: "40", code: "fee-1", explanation: "County recording charge.", formula: "base + pages", name: "Recording fee" }, { amount: "$203.50", code: "fee-2", explanation: "Additional county charge.", formula: "flat", name: "Additional fee" }], funds: [{ amount: "510", code: "fund-1", explanation: "Archive allocation.", formula: "flat", name: "Archive fund" }], heading: { class: "deed", title: "Title" }, history: { conveyance: [] } }) }} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Factors/i })).toBeVisible());
     expect(screen.queryByRole("heading", { name: "Deed" })).not.toBeInTheDocument();
     expect(document.querySelector("[data-metadata-context='true']")).toBeNull();
     expect(screen.queryByTestId("progress-caption")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Fee Factors/i })).toBeVisible();
+    expect(screen.getByRole("button", { name: /^Factors/i })).toBeVisible();
     expect(screen.getByRole("button", { name: /^Fees/i })).toBeVisible();
     expect(screen.getByRole("button", { name: /^Funds/i })).toBeVisible();
     for (const name of [
@@ -57,7 +57,7 @@ describe("ComputePanel", () => {
     }
     expect(screen.queryByRole("button", { name: /^Chain/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^History/i })).not.toBeInTheDocument();
-    expect(screen.getByRole("region", { name: "Metadata" }).parentElement).toHaveStyle({
+    expect(screen.getByRole("region", { name: "Compute" })).toHaveStyle({
       display: "flex",
       flex: "1 1 auto",
       flexDirection: "column",
@@ -67,11 +67,12 @@ describe("ComputePanel", () => {
     expect(screen.queryByRole("button", { name: /back to start/i })).not.toBeInTheDocument();
     const feeRow = screen.getByText("$40.00").closest("article");
     expect(feeRow).toHaveTextContent("Recording fee");
-    expect(feeRow).toHaveTextContent("Formula: base + pages");
+    expect(feeRow).not.toHaveTextContent("Formula:");
     fireEvent.click(within(feeRow!).getByRole("button", { name: "Expand details" }));
+    expect(feeRow).toHaveTextContent("Formula: base + pages");
     expect(feeRow).toHaveTextContent("Explanation: County recording charge.");
     expect(screen.getByText("$203.50", { exact: true })).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: /^Fee Factors/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Factors/i }));
     const factorRow = screen.getByText("Consideration").closest("article");
     expect(factorRow).toHaveTextContent("40");
     expect(factorRow).not.toHaveTextContent("$40.00");
@@ -98,7 +99,7 @@ describe("ComputePanel", () => {
   });
 
   it("keeps a fee failure as the final timeline step", async () => {
-    render(<ComputePanel callbacks={{}} request={{ document: "document.pdf", authToken: "t", capability: "compute", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-cp-failed", session: "s" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={vi.fn()} onError={vi.fn()} workerClient={{ submit: async () => ({ data: "Fee service unavailable", status: "error" }), status: vi.fn(), data: vi.fn() }} />);
+    render(<ComputePanel onResource={async () => "metadata-etag"} request={{ document: "document.pdf", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-cp-failed", session: "s" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={vi.fn()} onError={vi.fn()} workerClient={{ submit: async () => ({ data: "Fee service unavailable", status: "error" }), status: vi.fn(), data: vi.fn() }} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Fee service unavailable");
     expect(screen.getAllByRole("listitem").at(-1)).toHaveAttribute("data-phase", "failed");

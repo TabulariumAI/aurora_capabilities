@@ -36,7 +36,7 @@ export async function optionsComposition(apiBaseUrl: string, token: string, sess
     throw { code: "parse_error", error: "Response data is not valid JSON." };
   }
   const parcel = getParcelOptions(metadata.indexes);
-  return [parcel.parcel_address, parcel.parcel_id]
+  return [parcel.property_address, parcel.property_id]
     .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
     .map((value) => value.trim())
     .filter((value, index, values) => values.indexOf(value) === index);
