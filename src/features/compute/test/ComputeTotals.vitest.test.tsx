@@ -8,7 +8,7 @@ const segments = { ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDOR
 
 function View({ data }: { data: ComputeResult }) {
   const [openSegment, setOpenSegment] = useState<string | null>(null);
-  return <ComputeDetails data={data} onEndorse={() => undefined} openSegment={openSegment} segments={segments} setOpenSegment={setOpenSegment} shortcuts={new Map()} />;
+  return <ComputeDetails session="totals-session" onAddFee={() => undefined} onAddFund={() => undefined} data={data} onEndorse={() => undefined} openSegment={openSegment} segments={segments} setOpenSegment={setOpenSegment} shortcuts={new Map()} />;
 }
 
 afterEach(cleanup);

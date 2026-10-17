@@ -1,12 +1,11 @@
 import { useEffect, useMemo } from "react";
 import type { ProgressEvent } from "../../progressview/type/progress.types";
-import { workerError } from "../../../shared/worker/capabilityHttp";
+import { pollSteps, workerError } from "../../../shared/worker/capabilityHttp";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 import { COMPOSITION_SEGMENTS, type CompositionFailure, type CompositionPanelProps } from "../../../shared/type/capability.types";
 import { useCompositionStore } from "../store/compositionStore";
 import { createCompositionWorkerClient } from "../worker/compositionWorkerClient";
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isComplete = (status: unknown) => status === "completed";
 const isFailed = (status: unknown) => status === "error";
 
@@ -44,14 +43,16 @@ export function useComposition({ onComplete, onError, onProgress, request, worke
         response = await client.status(request.authToken, request.session);
         if (isFailed(response.status)) throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as { data?: unknown })?.data}` };
         let complete = isComplete(response.status);
-        for (let attempt = 0; !complete && attempt < 27; attempt += 1) {
-          await wait(request.intervalMs);
-          if (canceled) return;
-          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: attempt + 2, total: 28, unit: "steps" } });
-          operation = "status";
-          response = await client.status(request.authToken, request.session);
-          if (isFailed(response.status)) throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as { data?: unknown })?.data}` };
-          complete = isComplete(response.status);
+        if (!complete) {
+          for await (const step of pollSteps(request.intervalMs, 27)) {
+            if (canceled) return;
+            onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: step + 2, total: 28, unit: "steps" } });
+            operation = "status";
+            response = await client.status(request.authToken, request.session);
+            if (isFailed(response.status)) throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as { data?: unknown })?.data}` };
+            complete = isComplete(response.status);
+            if (complete) break;
+          }
         }
         if (!complete) throw { code: "COMPOSITION_TIMEOUT", error: "Composition timed out." };
         operation = "data";

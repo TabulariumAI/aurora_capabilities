@@ -145,18 +145,10 @@ for (const width of [390, 840]) {
     ]) {
       await root.getByRole("button", { name: section, exact: true }).click();
       await expect(total).toBeVisible();
-      for (const action of ["Reprocess", "Clear", "Add"]) {
-        const button = root.getByRole("button", { name: `${action} ${section}`, exact: true });
-        const count = alerts.length;
-        await button.click();
-        expect(alerts).toHaveLength(count);
-        await root.getByRole("button", { name: "Confirm", exact: true }).click();
-        await expect.poll(() => alerts.length).toBe(count + 1);
-        expect(alerts.at(-1)).toBe(`${action} ${section}`);
-      }
+      await expect(root.getByRole("button", { name: new RegExp(`Reprocess ${section}|Clear ${section}|Edit `) })).toHaveCount(0);
       const row = root.locator("article").filter({ hasText: name });
       await expect(row.getByText(amount, { exact: true })).toHaveCSS("text-align", "right");
-      for (const action of ["Delete", "Edit"]) {
+      for (const action of ["Delete"]) {
         const button = row.getByRole("button", { name: `${action} ${name}`, exact: true });
         const count = alerts.length;
         await button.focus();

@@ -23,7 +23,7 @@ export type CapabilityError = {
 
 export type ComputeOperation = "submit" | "status" | "data";
 export type CompositionOperation = "submit" | "status" | "data" | "options";
-export type RecordOperation = "status" | "submit" | "data";
+export type RecordOperation = "status" | "compute" | "submit" | "data";
 export type RedactOperation = "status" | "submit" | "data";
 export type ManifestOperation = "status" | "submit" | "data";
 
@@ -146,9 +146,27 @@ export type CapabilityPoll = {
 };
 
 export type ComputeWorkerClient = {
+  model(token: string, session: string): Promise<ComputeResource>;
   submit(token: string, session: string, etag: string | null, refresh: boolean): Promise<CapabilityPoll>;
   status(token: string, session: string): Promise<CapabilityPoll>;
   data(token: string, session: string): Promise<ComputeResult>;
+};
+
+export type ComputeModel = { fee_factors: string[] | null; fees: [string, string, string][]; funds: [string, string, string][] };
+export type FundInput = { name: string; value: string };
+export type FeeInput = { name: string; value: string; fund?: { name: string } };
+export type ComputeResource = { model: ComputeModel; etag: string };
+export type ComputePatch = ({ op: "add" | "test"; path: string; value: [string, string, string] } | { op: "remove"; path: string } | { op: "move"; from: string; path: string })[];
+export type ComputeModelClient = {
+  model(token: string, session: string): Promise<ComputeResource>;
+  patch(token: string, session: string, etag: string, patch: ComputePatch): Promise<ComputeResource>;
+};
+
+export type AddFiscalPanelProps = {
+  segment: "fees" | "funds";
+  request: Pick<ComputeRequest, "authToken" | "session" | "documentApiGatewayUrl">;
+  onQueued(): void;
+  workerClient?: ComputeModelClient;
 };
 
 export type CompositionWorkerClient = {
@@ -159,6 +177,8 @@ export type CompositionWorkerClient = {
 };
 
 export type RecordWorkerClient = {
+  calculate(token: string, session: string): Promise<CapabilityPoll>;
+  computation(token: string, session: string): Promise<CapabilityPoll>;
   status(token: string, session: string): Promise<CapabilityPoll>;
   submit(token: string, session: string): Promise<CapabilityPoll>;
   data(token: string, session: string): Promise<RecordResult>;
@@ -177,6 +197,8 @@ export type ManifestWorkerClient = {
 };
 
 export type ComputePanelProps = {
+  onAddFee(anchor: HTMLElement): void;
+  onAddFund(anchor: HTMLElement): void;
   onResource(request: ResourceRequest): Promise<string | null>;
   onComplete: (terminal: CapabilityComplete<"compute", ComputeResult>) => void;
   onEndorse: () => void;

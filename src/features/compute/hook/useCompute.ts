@@ -1,12 +1,11 @@
 import { useEffect, useMemo } from "react";
 import type { ProgressEvent } from "../../progressview/type/progress.types";
-import { workerError } from "../../../shared/worker/capabilityHttp";
-import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
+import { pollSteps, workerError } from "../../../shared/worker/capabilityHttp";
 import type { ComputeFailure, ComputePanelProps } from "../../../shared/type/capability.types";
+import { computeQueueStore } from "../store/computeQueueStore";
 import { useComputeStore } from "../store/computeStore";
 import { createComputeWorkerClient } from "../worker/computeWorkerClient";
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isComplete = (status: unknown) => status === "completed";
 const isFailed = (status: unknown) => status === "error";
 
@@ -16,6 +15,12 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
   useEffect(() => {
     useComputeStore.getState().open(request, segments.FEE);
     if (!useComputeStore.getState().setRunning(request.requestId)) return;
+    const queue = computeQueueStore.getState();
+    if (!request.refresh && queue.bases[request.session] && queue.models[request.session]) {
+      useComputeStore.getState().setReady(request.requestId);
+      onComplete({ capability: "compute", outcome: "completed", requestId: request.requestId, result: queue.data[request.session], session: request.session });
+      return;
+    }
     let canceled = false;
     let operation: ComputeFailure["operation"] = "submit";
     let progressId = "start";
@@ -53,14 +58,14 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
           progressId = "calculating";
           message = "Calculating document fees...";
           onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 0, total: 27, unit: "steps" } });
-          for (let attempt = 0; !complete && attempt < 27; attempt += 1) {
-            await wait(request.intervalMs);
+          for await (const step of pollSteps(request.intervalMs, 27)) {
             if (canceled) return;
-            onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: attempt + 1, total: 27, unit: "steps" } });
+            onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: step + 1, total: 27, unit: "steps" } });
             operation = "status";
             response = await client.status(request.authToken, request.session);
             if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
             complete = isComplete(response.status);
+            if (complete) break;
           }
         }
         if (!complete) throw { code: "COMPUTE_TIMEOUT", error: "Compute timed out." };
@@ -72,7 +77,11 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
         if (canceled) return;
         onProgress({ jobId: `${request.requestId}-complete`, message: "Fee calculation complete.", phase: "started" });
         onProgress({ jobId: `${request.requestId}-complete`, message: "Fee calculation complete.", phase: "completed" });
-        useCapabilityDataStore.getState().setData("compute", request.session, result);
+        const resource = await client.model(request.authToken, request.session);
+        if (canceled) return;
+        await computeQueueStore.getState().setModel(request.session, resource);
+        await computeQueueStore.getState().setResult(request.session, result);
+        if (canceled) return;
         useComputeStore.getState().setReady(request.requestId);
         onComplete({ capability: "compute", outcome: "completed", requestId: request.requestId, result, session: request.session });
       } catch (error) {

@@ -1,0 +1,29 @@
+import { IDBFactory } from "fake-indexeddb";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { ComputeDetails } from "../component/ComputeDetails";
+import { computeQueueStore } from "../store/computeQueueStore";
+
+beforeEach(() => { computeQueueStore.getState().reset(); vi.stubGlobal("indexedDB", new IDBFactory()); });
+afterEach(cleanup);
+
+it("keeps Save and Cancel visible, blocks Endorse for drafts, and restores on Cancel", async () => {
+  const client = { model: vi.fn(), patch: vi.fn() };
+  await computeQueueStore.getState().restore("owner", { client, authToken: "token", onChange: vi.fn() });
+  await computeQueueStore.getState().setModel("session", { model: { fee_factors: [], fees: [["Fee", "fee", "10.0"]], funds: [["Fund", "fund", "total_amount"]] }, etag: '"v1"' });
+  await computeQueueStore.getState().setResult("session", { fee_factors: [], fees: [{ name: "fee", amount: "10.00", formula: "10.0", explanation: "Fee" }], funds: [{ name: "fund", amount: "10.00", formula: "total_amount", explanation: "Fund" }] });
+  function View() {
+    const result = computeQueueStore(state => state.data.session);
+    return <ComputeDetails session="session" data={result} onAddFee={vi.fn()} onAddFund={vi.fn()} onEndorse={vi.fn()} openSegment="fee" setOpenSegment={vi.fn()} shortcuts={new Map()} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} />;
+  }
+  render(<View />);
+  expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  await act(async () => { await computeQueueStore.getState().enqueue("session", { action: "add", fee: { name: "Extra", value: "2.50" } }); });
+  expect(screen.getByRole("group", { name: "Compute total" })).toHaveTextContent("$12.50");
+  expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+  expect(screen.getByRole("button", { name: "Endorse" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  await waitFor(() => expect(screen.getByRole("group", { name: "Compute total" })).toHaveTextContent("$10.00"));
+  expect(client.patch).not.toHaveBeenCalled();
+});

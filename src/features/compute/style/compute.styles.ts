@@ -1,3 +1,4 @@
+import { formStyles, rowStyles } from "aurora-core";
 import type { CSSProperties } from "react";
 
 export const computeCss = `
@@ -7,6 +8,12 @@ export const computeCss = `
 `;
 
 export const computeStyles = {
+  added: { color: "var(--slate-500)", fontSize: "0.75rem", fontWeight: 400, marginLeft: "0.5rem" },
+  failedRow: rowStyles.failedRow,
+  recovery: { minWidth: 0, overflowWrap: "anywhere", gridColumn: "1 / -1", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" },
+  fiscalForm: { ...formStyles.root, padding: "1rem", minWidth: 0 },
+  fiscalFields: { ...formStyles.fields, border: 0, minWidth: 0 },
+  fiscalInputs: { ...formStyles.fields, gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", minWidth: 0 },
   root: {
     color: "var(--title-ink)",
     display: "flex",
@@ -114,6 +121,7 @@ export const computeStyles = {
     minWidth: 0,
     overflowWrap: "anywhere",
   },
+  dragLabel: { alignItems: "center", display: "flex", gap: "0.25rem" },
   value: {
     fontSize: "1rem",
     fontVariantNumeric: "tabular-nums",
@@ -135,9 +143,9 @@ export const computeStyles = {
     gap: "0.125rem",
     gridColumn: "4",
     gridRow: "1",
-    gridTemplateColumns: "repeat(4, 2rem)",
+    gridTemplateColumns: "repeat(3, 2rem)",
     justifySelf: "end",
-    width: "8.375rem",
+    width: "6.25rem",
   },
   iconAction: {
     height: "2rem",
@@ -145,13 +153,14 @@ export const computeStyles = {
     minWidth: "2rem",
     width: "2rem",
   },
+  currencyActions: { gridTemplateColumns: "repeat(5, 2rem)", width: "10.5rem" },
   factorActions: {
     gridTemplateColumns: "repeat(2, 2rem)",
     width: "4.125rem",
   },
   total: {
     borderBottom: 0,
-    gridTemplateColumns: "1rem minmax(0, 1fr) max-content 8.375rem",
+    gridTemplateColumns: "1rem minmax(0, 1fr) max-content 10.5rem",
     marginLeft: "2rem",
   },
   detail: {

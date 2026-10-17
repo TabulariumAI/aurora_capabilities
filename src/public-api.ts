@@ -1,4 +1,5 @@
 export { ComputePanel } from "./features/compute/component/ComputePanel";
+export { AddFiscalPanel } from "./features/compute/component/AddFiscalPanel";
 export { CompositionPanel } from "./features/composition/component/CompositionPanel";
 export { RecordPanel } from "./features/record/component/RecordPanel";
 export { RedactPanel } from "./features/redact/component/RedactPanel";
@@ -24,3 +25,6 @@ export type * from "./shared/type/capability.types";
 export type * from "./features/compute/type/compute.types";
 export type * from "./features/composition/type/composition.types";
 export type * from "./features/manifest/type/manifest.types";
+
+export { computeQueueStore } from "./features/compute/store/computeQueueStore";
+export type { ComputeChange, ComputeTask, ComputeRuntime, ComputeTransition } from "./features/compute/store/computeQueueStore";

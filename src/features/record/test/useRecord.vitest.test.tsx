@@ -19,7 +19,7 @@ describe("useRecord", () => {
       onComplete,
       onError: vi.fn(),
       onProgress,
-      workerClient: {
+      workerClient: { calculate: async () => ({ status: "completed", data: null }), computation: async () => ({ status: "completed", data: null }),
         status: async () => ({ data: null, status: "completed" }),
         submit: async () => ({ data: null, status: "processing" }),
         data: async () => data,
@@ -39,8 +39,8 @@ describe("useRecord", () => {
       onComplete: vi.fn(),
       onError,
       onProgress,
-      workerClient: {
-        status: async () => ({ data: null, status: "processing" }),
+      workerClient: { calculate: async () => ({ status: "completed", data: null }), computation: async () => ({ status: "completed", data: null }),
+        status: async () => ({ data: null, status: "pending" }),
         submit: async () => { throw new Error("Compute failed"); },
         data: vi.fn(),
       },
@@ -59,7 +59,7 @@ describe("useRecord", () => {
       onComplete,
       onError: vi.fn(),
       onProgress,
-      workerClient: {
+      workerClient: { calculate: async () => ({ status: "completed", data: null }), computation: async () => ({ status: "completed", data: null }),
         status: async () => ({ data: null, status: ++checks > 1 ? "completed" : "processing" }),
         submit: async () => ({ data: null, status: "processing" }),
         data: async () => ({ pdf_confirmation: "confirmation.pdf", pdf_record: "record.pdf" }),
@@ -78,7 +78,7 @@ afterEach(() => vi.restoreAllMocks());
 it.each([false, true])("publishes only after data is ready; canceled=%s", async (canceled) => {
   let finish!: (value: { pdf: string; chain: never[] }) => void;
   const data = { pdf: "https://test/document.pdf", chain: [] as never[] };
-  const workerClient = {
+  const workerClient = { calculate: vi.fn(async () => ({ status: "completed", data: null })), computation: vi.fn(async () => ({ status: "completed", data: null })),
     submit: vi.fn(async () => ({ status: "completed", data: null })),
     status: vi.fn(async () => ({ status: "completed", data: null })),
     data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })),
@@ -93,5 +93,41 @@ it.each([false, true])("publishes only after data is ready; canceled=%s", async 
   } else {
     view.rerender();
     view.unmount();
+  }
+});
+
+
+it.each([500, 7500, 10000].flatMap(intervalMs => [false, true].map(complete => ({ intervalMs, complete }))))("preserves the record polling budget at $intervalMs ms; completed=$complete", async ({ intervalMs, complete }) => {
+  vi.useFakeTimers();
+  const onComplete = vi.fn();
+  const onError = vi.fn();
+  const onProgress = vi.fn();
+  const workerClient = { calculate: vi.fn(async () => ({ status: "completed", data: null })), computation: vi.fn(async () => ({ status: "completed", data: null })),
+    submit: vi.fn(async () => ({ status: "processing", data: null })),
+    status: vi.fn().mockResolvedValueOnce({ status: "pending", data: null }).mockResolvedValue({ status: "processing", data: null }),
+    data: vi.fn(async () => ({ pdf: "document.pdf", chain: [] })),
+  };
+  const view = renderHook(() => useRecord({
+    request: { document: "document.pdf", authToken: "t", capability: "record", documentApiGatewayUrl: "u", intervalMs, requestId: `budget-record-${complete}`, session: "budget-session" },
+    onComplete, onError, onProgress, workerClient,
+  }));
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(157000); });
+    expect(onError).not.toHaveBeenCalled();
+    expect(workerClient.data).not.toHaveBeenCalled();
+    expect(workerClient.status).toHaveBeenCalledTimes(Math.floor(157000 / intervalMs) + 1);
+    if (complete) workerClient.status.mockResolvedValue({ status: "completed", data: null });
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(onComplete).toHaveBeenCalledTimes(complete ? 1 : 0);
+    expect(onError).toHaveBeenCalledTimes(complete ? 0 : 1);
+    expect(workerClient.submit).toHaveBeenCalledOnce();
+    expect(workerClient.data).toHaveBeenCalledTimes(complete ? 1 : 0);
+    expect(onProgress.mock.calls.filter(([event]) => event.progress).at(-1)?.[0].progress.completed).toBe(21);
+    for (const [event] of onProgress.mock.calls) {
+      if (event.progress) expect(event.progress.completed).toBeLessThanOrEqual(event.progress.total);
+    }
+  } finally {
+    view.unmount();
+    vi.useRealTimers();
   }
 });

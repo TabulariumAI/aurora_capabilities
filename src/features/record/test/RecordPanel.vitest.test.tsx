@@ -17,7 +17,7 @@ afterEach(() => {
 
 describe("RecordPanel", () => {
   it("shows recording progress in the panel", async () => {
-    const view = render(<RecordPanel request={{ authToken: "t", capability: "record", document: "d", documentApiGatewayUrl: "u", intervalMs: 1_000, requestId: "r-record-loader", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ status: async () => ({ data: null, status: "processing" }), submit: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
+    const view = render(<RecordPanel request={{ authToken: "t", capability: "record", document: "d", documentApiGatewayUrl: "u", intervalMs: 1_000, requestId: "r-record-loader", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ calculate: async () => ({ status: "completed", data: null }), computation: async () => ({ status: "completed", data: null }), status: vi.fn().mockResolvedValueOnce({ data: null, status: "pending" }).mockResolvedValue({ data: null, status: "processing" }), submit: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
 
     expect(await screen.findByText("RECORDING THE DOCUMENT")).toBeVisible();
     expect(screen.getByText("I’ll keep you updated as I prepare your document for recording.")).toBeVisible();
@@ -29,13 +29,13 @@ describe("RecordPanel", () => {
 
   it("replaces progress rows for a new recording", async () => {
     const request = { authToken: "t", capability: "record" as const, document: "d", documentApiGatewayUrl: "u", intervalMs: 10_000, session: "s" };
-    const workerClient = { status: async () => ({ data: null, status: "processing" }), submit: async () => ({ data: null, status: "processing" }), data: vi.fn() };
+    const workerClient = { calculate: vi.fn(async () => ({ status: "completed", data: null })), computation: vi.fn(async () => ({ status: "completed", data: null })), status: vi.fn().mockResolvedValueOnce({ data: null, status: "pending" }).mockResolvedValue({ data: null, status: "processing" }), submit: async () => ({ data: null, status: "processing" }), data: vi.fn() };
     const view = render(<RecordPanel request={{ ...request, requestId: "record-1" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={workerClient} />);
 
     await screen.findByText("Recording the document now...");
     view.rerender(<RecordPanel request={{ ...request, requestId: "record-2" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={workerClient} />);
 
-    await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(3));
+    await waitFor(() => expect(screen.getAllByRole("listitem")).toHaveLength(2));
     expect(screen.getAllByRole("listitem")[0]).toHaveTextContent("Checking recording status...");
   });
 
@@ -45,7 +45,7 @@ describe("RecordPanel", () => {
       pdf_record: "https://storage.test/subscription/s/record.pdf?sig=token",
       tiff_record: "https://storage.test/subscription/s/record.tiff?sig=token",
     };
-    render(<RecordPanel request={{ authToken: "t", capability: "record", document: "d", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-record-panel", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ status: async () => ({ data: null, status: "completed" }), submit: async () => ({ data: null, status: "completed" }), data: async () => data }} />);
+    render(<RecordPanel request={{ authToken: "t", capability: "record", document: "d", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-record-panel", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ calculate: async () => ({ status: "completed", data: null }), computation: async () => ({ status: "completed", data: null }), status: async () => ({ data: null, status: "completed" }), submit: async () => ({ data: null, status: "completed" }), data: async () => data }} />);
     await waitFor(() => expect(screen.getByText("Recording complete.")).toBeInTheDocument());
     const panel = screen.getByRole("region", { name: "Recording actions" });
     const rows = screen.getAllByRole("listitem");
@@ -79,7 +79,7 @@ describe("RecordPanel", () => {
   });
 
   it("keeps a recording failure as the final timeline step", async () => {
-    render(<RecordPanel request={{ authToken: "t", capability: "record", document: "d", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-record-failed", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ status: async () => ({ data: "Recording unavailable", status: "error" }),  submit: vi.fn(), data: vi.fn() }} />);
+    render(<RecordPanel request={{ authToken: "t", capability: "record", document: "d", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-record-failed", session: "s" }} onComplete={vi.fn()} onError={vi.fn()} workerClient={{ calculate: async () => ({ status: "completed", data: null }), computation: async () => ({ status: "completed", data: null }), status: async () => ({ data: "Recording unavailable", status: "error" }),  submit: vi.fn(), data: vi.fn() }} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Recording unavailable");
     expect(screen.getAllByRole("listitem").at(-1)).toHaveAttribute("data-phase", "failed");

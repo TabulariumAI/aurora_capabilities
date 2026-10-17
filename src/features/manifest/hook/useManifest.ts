@@ -1,12 +1,11 @@
 import { useEffect, useMemo } from "react";
 import type { ProgressEvent } from "../../progressview/type/progress.types";
-import { workerError } from "../../../shared/worker/capabilityHttp";
+import { pollSteps, workerError } from "../../../shared/worker/capabilityHttp";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 import type { ManifestFailure, ManifestPanelProps } from "../../../shared/type/capability.types";
 import { useManifestStore } from "../store/manifestStore";
 import { createManifestWorkerClient } from "../worker/manifestWorkerClient";
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isComplete = (status: unknown) => status === "completed";
 const isFailed = (status: unknown) => status === "error";
 
@@ -54,15 +53,15 @@ export function useManifest({ onComplete, onError, onProgress, request, workerCl
           onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 0, total: 21, unit: "steps" } });
           response = await client.submit(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : `${context}.` };
-          for (let attempt = 0; !complete && attempt < 21; attempt += 1) {
-            await wait(request.intervalMs);
+          for await (const step of pollSteps(request.intervalMs, 21)) {
             if (canceled) return;
-            onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: attempt + 1, total: 21, unit: "steps" } });
+            onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: step + 1, total: 21, unit: "steps" } });
             operation = "status";
             context = "Manifest checkStatus failed";
             response = await client.status(request.authToken, request.session);
             if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : `${context}.` };
             complete = isComplete(response.status);
+            if (complete) break;
           }
         }
         if (!complete) throw { code: "REPORT_TIMEOUT", error: "Report timed out." };

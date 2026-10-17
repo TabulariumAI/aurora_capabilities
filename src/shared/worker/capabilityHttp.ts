@@ -1,6 +1,8 @@
 import type { CapabilityError, CapabilityPoll } from "../type/capability.types";
 
 type RawResponse = {
+  model?: unknown;
+  etag?: string;
   code?: string;
   data?: unknown;
   error?: string;
@@ -35,13 +37,14 @@ function toError(response: Response, data: RawResponse): CapabilityError {
 export async function capabilityFetch(
   token: string,
   url: string,
-  init: { method: "GET" | "POST"; body?: unknown },
+  init: { method: "GET" | "POST" | "PATCH"; body?: unknown; headers?: Record<string, string> },
 ): Promise<RawResponse> {
   const response = await fetch(url, {
     method: init.method,
     headers: {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
+      ...init.headers,
     },
     body: init.body === undefined || init.body === null ? undefined : JSON.stringify(init.body),
     cache: "no-store",
@@ -61,6 +64,8 @@ export async function capabilityFetch(
     }
   }
   if (!response.ok || payload.success === false) throw toError(response, payload);
+  const etag = response.headers.get("ETag");
+  if (etag) payload.etag = etag;
   return payload;
 }
 
@@ -99,4 +104,15 @@ export function workerError(error: unknown, defaultMessage: string): CapabilityE
     error: candidate?.error ?? candidate?.message ?? defaultMessage,
     status: candidate?.status,
   };
+}
+
+
+export async function* pollSteps(intervalMs: number, steps: number) {
+  const stepMs = 7500;
+  const started = Date.now();
+  const deadline = started + steps * stepMs;
+  for (let check = 0; check < steps * 15 && Date.now() < deadline; check++) {
+    await new Promise<void>(resolve => setTimeout(resolve, Math.min(intervalMs, deadline - Date.now())));
+    yield Math.min(steps - 1, Math.max(0, Math.ceil((Date.now() - started) / stepMs) - 1));
+  }
 }

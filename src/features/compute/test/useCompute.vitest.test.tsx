@@ -2,7 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCompute } from "../hook/useCompute";
 import { useComputeStore } from "../store/computeStore";
-import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
+import { computeQueueStore } from "../store/computeQueueStore";
 
 const segments = {
   ACKNOWLEDGMENT: "acknowledgment",
@@ -25,7 +25,7 @@ const segments = {
 
 afterEach(() => {
   useComputeStore.getState().reset();
-  useCapabilityDataStore.getState().reset();
+  computeQueueStore.getState().reset();
   vi.restoreAllMocks();
 });
 
@@ -34,7 +34,7 @@ describe("useCompute", () => {
     let resolve!: (etag: string) => void;
     let reject!: (error: Error) => void;
     const resource = new Promise<string>((done, fail) => { resolve = done; reject = fail; });
-    const workerClient = { submit: vi.fn(), status: vi.fn(), data: vi.fn() };
+    const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), submit: vi.fn(), status: vi.fn(), data: vi.fn() };
     const onComplete = vi.fn();
     const onError = vi.fn();
     const props = {
@@ -65,7 +65,7 @@ describe("useCompute", () => {
       onResource,
       request: { document: "document.pdf", authToken: "t", capability: "compute", refresh, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "etag", session: "s" },
       onComplete, onError: vi.fn(), onProgress: vi.fn(), segments,
-      workerClient: { submit, status: async () => ({ status: "completed", data: "" }), data: async () => ({ fee_factors: [], fees: [], funds: [] }) },
+      workerClient: { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), submit, status: async () => ({ status: "completed", data: "" }), data: async () => ({ fee_factors: [], fees: [], funds: [] }) },
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
     if (refresh) expect(onResource).not.toHaveBeenCalled();
@@ -84,7 +84,7 @@ describe("useCompute", () => {
       onError: vi.fn(),
       onProgress,
       segments,
-      workerClient: {
+      workerClient: { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }),
         submit: vi.fn(async () => { calls.push("submit"); return { data: null, status: "processing" }; }),
         status: vi.fn(async () => { calls.push("status"); return { data: null, status: calls.filter((v) => v === "status").length > 1 ? "completed" : "processing" }; }),
         data: vi.fn(async () => { calls.push("data"); return data; }),
@@ -93,7 +93,7 @@ describe("useCompute", () => {
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
     expect(useComputeStore.getState().openSegment).toBe("configured-fee");
     expect(calls).toEqual(["submit", "status", "status", "data"]);
-    expect(useCapabilityDataStore.getState().getData("compute", "s")).toEqual(data);
+    expect(computeQueueStore.getState().data.s).toEqual(data);
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Starting fee calculation...", phase: "started" }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Calculating document fees...", phase: "started", progress: { completed: 0, total: 27, unit: "steps" } }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Calculating document fees...", phase: "started", progress: { completed: 1, total: 27, unit: "steps" } }));
@@ -111,7 +111,7 @@ describe("useCompute", () => {
       onError,
       onProgress,
       segments,
-      workerClient: {
+      workerClient: { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }),
         submit: async () => ({ data: null, status: "completed" }),
         status: async () => ({ data: null, status: "completed" }),
         data: async () => { throw new Error("Data failed"); },
@@ -119,7 +119,7 @@ describe("useCompute", () => {
     }));
 
     await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "data" })));
-    expect(useCapabilityDataStore.getState().getData("compute", "s")).toBeNull();
+    expect(computeQueueStore.getState().data.s).toBeUndefined();
     expect(error).not.toHaveBeenCalled();
     expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ message: "Preparing fee details...", phase: "failed" }));
   });
@@ -127,7 +127,7 @@ describe("useCompute", () => {
   it.each(["submit", "status"] as const)("reports refresh %s failures without retrieving data", async operation => {
     const onError = vi.fn();
     const onComplete = vi.fn();
-    const workerClient = {
+    const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }),
       submit: vi.fn(async () => ({ status: operation === "submit" ? "error" : "processing", data: "Compute failed" })),
       status: vi.fn(async () => ({ status: "error", data: "Compute failed" })),
       data: vi.fn(),
@@ -148,7 +148,7 @@ describe("useCompute", () => {
 it.each([[false, false], [false, true], [true, false], [true, true]])("publishes only after data is ready; refresh=%s canceled=%s", async (refresh, canceled) => {
   let finish!: (value: typeof data) => void;
   const data = { fee_factors: [], fees: [], funds: [] };
-  const workerClient = {
+  const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }),
     submit: vi.fn(async () => ({ status: "completed", data: null })),
     status: vi.fn(async () => ({ status: "completed", data: null })),
     data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })),
@@ -165,5 +165,41 @@ it.each([[false, false], [false, true], [true, false], [true, true]])("publishes
     view.rerender();
     expect(props.onComplete).toHaveBeenCalledOnce();
     view.unmount();
+  }
+});
+
+
+it.each([500, 7500, 10000].flatMap(intervalMs => [false, true].map(complete => ({ intervalMs, complete }))))("preserves the compute polling budget at $intervalMs ms; completed=$complete", async ({ intervalMs, complete }) => {
+  vi.useFakeTimers();
+  const onComplete = vi.fn();
+  const onError = vi.fn();
+  const onProgress = vi.fn();
+  const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }),
+    submit: vi.fn(async () => ({ status: "processing", data: null })),
+    status: vi.fn(async () => ({ status: "processing", data: null })),
+    data: vi.fn(async () => ({ fee_factors: [], fees: [], funds: [] })),
+  };
+  const view = renderHook(() => useCompute({
+    request: { document: "document.pdf", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs, requestId: `budget-compute-${complete}`, session: "budget-session" },
+    onComplete, onError, onProgress, workerClient, onResource: async () => "metadata-etag", segments,
+  }));
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(202000); });
+    expect(onError).not.toHaveBeenCalled();
+    expect(workerClient.data).not.toHaveBeenCalled();
+    expect(workerClient.status).toHaveBeenCalledTimes(Math.floor(202000 / intervalMs) + 1);
+    if (complete) workerClient.status.mockResolvedValue({ status: "completed", data: null });
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(onComplete).toHaveBeenCalledTimes(complete ? 1 : 0);
+    expect(onError).toHaveBeenCalledTimes(complete ? 0 : 1);
+    expect(workerClient.submit).toHaveBeenCalledOnce();
+    expect(workerClient.data).toHaveBeenCalledTimes(complete ? 1 : 0);
+    expect(onProgress.mock.calls.filter(([event]) => event.progress).at(-1)?.[0].progress.completed).toBe(27);
+    for (const [event] of onProgress.mock.calls) {
+      if (event.progress) expect(event.progress.completed).toBeLessThanOrEqual(event.progress.total);
+    }
+  } finally {
+    view.unmount();
+    vi.useRealTimers();
   }
 });

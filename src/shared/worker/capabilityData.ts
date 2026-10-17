@@ -2,11 +2,11 @@ import { create } from "zustand";
 import type { CapabilityName } from "../type/capability.types";
 
 type CapabilityDataState = {
-  data: Map<string, Partial<Record<CapabilityName, unknown>>>;
+  data: Map<string, Partial<Record<Exclude<CapabilityName, "compute">, unknown>>>;
   clearSession(session: string): void;
-  getData(capability: CapabilityName, session: string): unknown | null;
+  getData(capability: Exclude<CapabilityName, "compute">, session: string): unknown | null;
   reset(): void;
-  setData(capability: CapabilityName, session: string, value: unknown): void;
+  setData(capability: Exclude<CapabilityName, "compute">, session: string, value: unknown): void;
 };
 
 export const useCapabilityDataStore = create<CapabilityDataState>()((set, get) => ({

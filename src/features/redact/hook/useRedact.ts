@@ -1,12 +1,11 @@
 import { useEffect, useMemo } from "react";
 import type { ProgressEvent } from "../../progressview/type/progress.types";
-import { workerError } from "../../../shared/worker/capabilityHttp";
+import { pollSteps, workerError } from "../../../shared/worker/capabilityHttp";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 import type { RedactFailure, RedactPanelProps } from "../../../shared/type/capability.types";
 import { useRedactStore } from "../store/redactStore";
 import { createRedactWorkerClient } from "../worker/redactWorkerClient";
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const isComplete = (status: unknown) => typeof status === "string" && status.toLowerCase() === "completed";
 const isFailed = (status: unknown) => typeof status === "string" && ["error", "failed"].includes(status.toLowerCase());
 
@@ -45,14 +44,16 @@ export function useRedact({ onComplete, onError, onProgress, request, workerClie
           response = await client.submit(request.authToken, request.session);
           if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Redaction submit failed." };
         }
-        for (let attempt = 0; !complete && attempt < 21; attempt += 1) {
-          await wait(request.intervalMs);
-          if (canceled) return;
-          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: attempt + 1, total: 21, unit: "steps" } });
-          operation = "status";
-          response = await client.status(request.authToken, request.session);
-          if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Redaction status check failed." };
-          complete = isComplete(response.status);
+        if (!complete) {
+          for await (const step of pollSteps(request.intervalMs, 21)) {
+            if (canceled) return;
+            onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: step + 1, total: 21, unit: "steps" } });
+            operation = "status";
+            response = await client.status(request.authToken, request.session);
+            if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Redaction status check failed." };
+            complete = isComplete(response.status);
+            if (complete) break;
+          }
         }
         if (!complete) throw { code: "REDACT_TIMEOUT_REFRESH", error: "Redaction timed out." };
         operation = "data";

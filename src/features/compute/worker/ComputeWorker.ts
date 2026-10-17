@@ -1,5 +1,11 @@
-import type { ComputeResult } from "../../../shared/type/capability.types";
+import type { ComputeResult, ComputeModel } from "../../../shared/type/capability.types";
 import { blobJson, capabilityFetch, pollFromResponse } from "../../../shared/worker/capabilityHttp";
+
+export async function requestComputeModel(apiBaseUrl: string, token: string, session: string, update?: { etag: string; patch: unknown }) {
+  const response = await capabilityFetch(token, `${apiBaseUrl}/v1/compute/${session}/model`, update ? { method: "PATCH", body: update.patch, headers: { "If-Match": update.etag, "Content-Type": "application/json-patch+json" } } : { method: "GET" });
+  if (!response.etag || !response.model || typeof response.model !== "object") throw { code: "parse_error", error: "Compute model or ETag is missing." };
+  return { model: response.model as ComputeModel, etag: response.etag };
+}
 
 export async function submitCompute(apiBaseUrl: string, token: string, session: string, etag: string | null, refresh: boolean) {
   return pollFromResponse(await capabilityFetch(token, `${apiBaseUrl}/v1/compute/${session}/${refresh ? "recalculate" : "calculate"}`, { method: "POST", body: refresh ? {} : { etag } }));

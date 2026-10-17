@@ -119,3 +119,38 @@ it.each([false, true])("publishes only after data is ready; canceled=%s", async 
     view.unmount();
   }
 });
+
+
+it.each([500, 1000, 6000, 7500].flatMap(intervalMs => [false, true].map(complete => ({ intervalMs, complete }))))("preserves the manifest polling budget at $intervalMs ms; completed=$complete", async ({ intervalMs, complete }) => {
+  vi.useFakeTimers();
+  const onComplete = vi.fn();
+  const onError = vi.fn();
+  const onProgress = vi.fn();
+  const workerClient = {
+    submit: vi.fn(async () => ({ status: "processing", data: null })),
+    status: vi.fn(async () => ({ status: "processing", data: null })),
+    data: vi.fn(async () => ({ pdf: "document.pdf", chain: [] })),
+  };
+  const view = renderHook(() => useManifest({
+    request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs, requestId: `budget-manifest-${complete}`, session: "budget-session" },
+    onComplete, onError, onProgress, workerClient,
+  }));
+  try {
+    await act(async () => { await vi.advanceTimersByTimeAsync(157000); });
+    expect(onError).not.toHaveBeenCalled();
+    expect(workerClient.data).not.toHaveBeenCalled();
+    expect(workerClient.status).toHaveBeenCalledTimes(Math.floor(157000 / intervalMs) + 1);
+    if (complete) workerClient.status.mockResolvedValue({ status: "completed", data: null });
+    await act(async () => { await vi.advanceTimersByTimeAsync(500); });
+    expect(onComplete).toHaveBeenCalledTimes(complete ? 1 : 0);
+    expect(onError).toHaveBeenCalledTimes(complete ? 0 : 1);
+    expect(workerClient.submit).toHaveBeenCalledOnce();
+    expect(workerClient.data).toHaveBeenCalledTimes(complete ? 1 : 0);
+    for (const [event] of onProgress.mock.calls) {
+      if (event.progress) expect(event.progress.completed).toBeLessThanOrEqual(event.progress.total);
+    }
+  } finally {
+    view.unmount();
+    vi.useRealTimers();
+  }
+});
