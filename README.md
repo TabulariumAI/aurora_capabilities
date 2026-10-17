@@ -8,7 +8,7 @@ It is a host-integrated package. The host provides authentication, API gateway c
 
 - Compute document capability results
 - Compute owns Factors, Fees, and Funds. Fee/fund actions follow Copy, Delete, Expand. Expand shows the formula and explanation; confirmed Delete queues a model change.
-- Compute displays Total below Funds regardless of the expanded section. It sums fee amounts and shows an error below Total when the separately calculated fund total differs.
+- Compute displays Total fees below Funds regardless of the expanded section, with fee and fund subtotals in their section headers. It sums fee amounts and shows an error below Total fees when the separately calculated fund total differs. A visible legend explains row status dots; details use chevrons, secondary actions are muted, and Delete is visually separated.
 - Compose document outputs
 - Record and download confirmation, PDF, and TIFF outputs
 - Redact document outputs
@@ -44,7 +44,7 @@ Compute's `onAddFee(anchor)` callback opens the host callout containing `AddFisc
 
 Fund rows use aurora-core drag handles and Move up/Move down controls. Additions, deletions, and fund reordering update the local model and immediately recalculate fees and allocations using TypeScript evaluation of the existing arithmetic, comparison, and Rhai `if/else` formulas. Monetary rounding, fee dependencies, and remaining fund limits match the Rust calculation flow.
 
-`computeQueueStore` persists saved models, results, and unsaved changes in owner-scoped IndexedDB. The host awaits restoration before opening a restored workspace. Save sends all buffered operations in one conditional JSON Patch through `user_svc`; `document_svc` writes the next `compute/out/model#vN.json`. Cancel restores the saved state without a mutation. Both controls remain visible and disabled when unchanged or saving. Failed saves retain the local draft. Tokens and clients remain runtime-only, and restoration never submits changes automatically. Endorse is disabled while a draft remains unsaved.
+`computeQueueStore` persists saved models, results, and unsaved changes in owner-scoped IndexedDB. The host awaits restoration before opening a restored workspace. Save sends all buffered operations in one conditional JSON Patch through `user_svc`; `document_svc` writes the next `compute/out/model#vN.json`. Discard changes restores the saved state without a mutation. Both controls remain visible and disabled when unchanged or saving. Failed saves retain the local draft. Tokens and clients remain runtime-only, and restoration never submits changes automatically. Endorse is disabled while a draft remains unsaved. The panel announces unsaved and saving states, explains why endorsement is unavailable, and connects that explanation to Endorse for assistive technology.
 
 The host retains ownership of Compute Hub events. First-time endorsement shows server computation followed by endorsement in the existing ProgressView. A completed or running endorsement is reused without starting another one. Computation-result ETag verification is absent; model saves retain `ETag`/`If-Match` conflict protection.
 

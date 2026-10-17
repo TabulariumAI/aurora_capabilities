@@ -2,12 +2,19 @@ import { formStyles, rowStyles } from "aurora-core";
 import type { CSSProperties } from "react";
 
 export const computeCss = `
+  .compute-order-actions button { color: var(--slate-500) !important; }
   .compute-icon:hover, .compute-icon:focus-visible {
     background-color: var(--accent-surface) !important;
   }
 `;
 
 export const computeStyles = {
+  secondaryAction: { color: "var(--slate-500)" },
+  deleteAction: { color: "#B42318", borderLeft: "1px solid var(--border-card)", borderRadius: 0 },
+  orderActions: { display: "flex", gridColumn: "4 / 6", gap: "0.125rem" },
+  subtotal: { color: "var(--slate-500)", fontSize: "0.85rem", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
+  legend: { display: "flex", flexWrap: "wrap", gap: "0.35rem 1rem", color: "var(--slate-500)", fontSize: "0.75rem", margin: "0.5rem 0 0 2rem" },
+  saveStatus: { color: "var(--slate-500)", fontSize: "0.85rem", margin: "0", textAlign: "center" },
   added: { color: "var(--slate-500)", fontSize: "0.75rem", fontWeight: 400, marginLeft: "0.5rem" },
   failedRow: rowStyles.failedRow,
   recovery: { minWidth: 0, overflowWrap: "anywhere", gridColumn: "1 / -1", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "0.5rem" },
@@ -30,7 +37,7 @@ export const computeStyles = {
   accordion: {
     boxSizing: "border-box",
     display: "flex",
-    flex: "1 1 0",
+    flex: "0 1 auto",
     flexDirection: "column",
     minHeight: 0,
     overflowX: "hidden",
@@ -162,7 +169,11 @@ export const computeStyles = {
     borderBottom: 0,
     gridTemplateColumns: "1rem minmax(0, 1fr) max-content 10.5rem",
     marginLeft: "2rem",
+    marginTop: "1rem",
+    marginBottom: "1rem",
+    padding: "1rem 0",
   },
+  totalText: { fontSize: "1.25rem", fontWeight: 800 },
   detail: {
     color: "var(--slate-500)",
     fontSize: "0.92rem",

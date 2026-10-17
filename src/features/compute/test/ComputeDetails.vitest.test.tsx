@@ -127,7 +127,7 @@ describe("Compute details", () => {
     expect(within(row).queryByRole("button", { name: /Delete|Edit|Formula/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Reprocess Factors|Clear Factors|Add Factors/ })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Funds" }));
-    expect(screen.getByText("$73.00", { exact: true })).toHaveStyle({ textAlign: "right" });
+    expect(screen.getByText("$73.00", { exact: true, selector: ".compute-value" })).toHaveStyle({ textAlign: "right" });
   });
 
   it("retains zero filtering, explained zero rows, and empty section actions", () => {
@@ -150,7 +150,7 @@ describe("Compute details", () => {
   });
 });
 
-it("shows draft status and Save failure, and blocks Endorse until Save or Cancel", () => {
+it("shows draft status and Save failure, and blocks Endorse until Save or Discard changes", () => {
   computeQueueStore.getState().reset();
   computeQueueStore.setState({ tasks: [{ id: "queued", session: "session", change: { action: "add", fee: { name: "Extra", value: "1.00" } }, status: "failed", error: "Unavailable", patch: [] }] });
   const save = vi.spyOn(computeQueueStore.getState(), "save").mockResolvedValue(undefined);
@@ -161,7 +161,7 @@ it("shows draft status and Save failure, and blocks Endorse until Save or Cancel
   expect(screen.getByRole("button", { name: "Endorse" })).toBeDisabled();
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(save).toHaveBeenCalledWith("session");
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   expect(discard).toHaveBeenCalledWith("session");
   computeQueueStore.getState().reset();
 });
@@ -197,9 +197,10 @@ it("disables all mutation controls while Save is processing", () => {
   computeQueueStore.getState().reset();
   computeQueueStore.setState({ tasks: [{ id: "saving", session: "session", change: { action: "add", fee: { name: "Extra", value: "1.00" } }, status: "processing", error: null, patch: [] }] });
   render(<View />);
+  expect(screen.getByRole("status", { name: "Save status" })).toHaveTextContent("Saving changes…");
   expect(screen.getByRole("button", { name: "Add Fees" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
   computeQueueStore.getState().reset();
 });
 

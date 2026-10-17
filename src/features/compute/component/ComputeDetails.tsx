@@ -1,6 +1,6 @@
 import { formStyles, useDragOrder, OrderButtons, type OrderButtonsProps, ConfButton, iconButtonStyle, SuccessIcon, formatLabel, isAmbiguous, type MetadataFeeFactor, type MetadataFeeItem } from "aurora-core";
 import * as Collapsible from "@radix-ui/react-collapsible";
-import type { HTMLAttributes, ReactNode, JSX } from "react";
+import { useId, type HTMLAttributes, type ReactNode, type JSX } from "react";
 import { computeQueueStore, type ComputeTask } from "../store/computeQueueStore";
 import { useDetailStore } from "../store/fiscalStore";
 import { ComputeIcon } from "./ComputeIcon";
@@ -43,19 +43,20 @@ function FiscalRow({ item, currency, session, collection, task, pending, order, 
   const value = currency ? currencyFormat.format(parseAmount(item.amount)) : item.amount;
   const label = formatLabel(item.name);
   const ambiguous = "ambiguous" in item && isAmbiguous(item.ambiguous);
+  const status = task?.status === "failed" ? "Save failed" : task?.status === "processing" ? "Saving" : ambiguous ? "Ambiguous" : "No ambiguity reported";
   return (
     <Collapsible.Root asChild open={open} onOpenChange={setOpen}>
       <article {...drag?.props} className="compute-row" data-compute-code={item.code} data-status={task?.status === "failed" ? "failed" : task?.status === "processing" ? "pending" : ambiguous ? "warning" : "success"} style={{ ...computeStyles.row, ...drag?.props.style, ...(task?.status === "failed" ? computeStyles.failedRow : {}) }}>
-        <span aria-label={task?.status === "failed" ? "Failed" : task?.status === "processing" ? "Pending" : ambiguous ? "Ambiguous" : "OK"} role="img" style={computeStyles.status}>
+        <span aria-label={status} title={status} role="img" style={computeStyles.status}>
           {task?.status === "failed" || task?.status === "processing" || ambiguous ? <svg aria-hidden="true" fill={task?.status === "failed" ? "#dc2626" : "#f59e0b"} height="12" viewBox="0 0 24 24" width="12"><circle cx="12" cy="12" r="12" /></svg> : <SuccessIcon />}
         </span>
         <span style={{ ...computeStyles.label, ...(drag ? computeStyles.dragLabel : {}) }}>{drag?.handle}<span>{label}{added ? <small style={computeStyles.added}>Added</small> : null}</span></span>
         <span className="compute-value" style={computeStyles.value}>{value}</span>
         <div aria-label={`${label} actions`} className="compute-row-actions" role="group" style={{ ...computeStyles.rowActions, ...(currency ? computeStyles.currencyActions : computeStyles.factorActions) }}>
-          <ConfButton aria-label={`Copy value ${value}`} className="compute-icon" flat onConfirm={() => navigator.clipboard.writeText(value)} requireConfirmation={false} size="icon" style={{ ...computeStyles.iconAction, gridColumn: "1" }} title={`Copy value ${value}`}>
+          <ConfButton aria-label={`Copy value ${value}`} className="compute-icon" flat onConfirm={() => navigator.clipboard.writeText(value)} requireConfirmation={false} size="icon" style={{ ...computeStyles.iconAction, ...computeStyles.secondaryAction, gridColumn: "1" }} title={`Copy value ${value}`}>
             <ComputeIcon name="copy" />
           </ConfButton>
-          {collection && "formula" in item ? <ConfButton aria-label={`Delete ${label}`} className="compute-icon" flat disabled={pending} onConfirm={() => { void computeQueueStore.getState().enqueue(session, { action: "remove", segment: collection!, item }).catch(() => undefined); }} size="icon" style={{ ...computeStyles.iconAction, gridColumn: "2" }} title={`Delete ${label}`}>
+          {collection && "formula" in item ? <ConfButton aria-label={`Delete ${label}`} className="compute-icon" flat disabled={pending} onConfirm={() => { void computeQueueStore.getState().enqueue(session, { action: "remove", segment: collection!, item }).catch(() => undefined); }} size="icon" style={{ ...computeStyles.iconAction, ...computeStyles.deleteAction, gridColumn: "2" }} title={`Delete ${label}`}>
             <ComputeIcon name="remove" />
           </ConfButton> : null}
           {"formula" in item || item.explanation ? <Collapsible.Trigger asChild>
@@ -63,7 +64,7 @@ function FiscalRow({ item, currency, session, collection, task, pending, order, 
               <ComputeIcon name={open ? "collapse" : "expand"} />
             </ConfButton>
           </Collapsible.Trigger> : null}
-          {order ? <OrderButtons label={label} {...order} /> : null}
+          {order ? <div className="compute-order-actions" style={computeStyles.orderActions}><OrderButtons label={label} {...order} /></div> : null}
         </div>
         {"formula" in item || item.explanation ? <Collapsible.Content style={computeStyles.detail}>
           {"formula" in item ? <div><strong style={computeStyles.detailLabel}>Formula:</strong> {item.formula}</div> : null}
@@ -110,6 +111,7 @@ function FiscalSegment({
             <span>{shortcutIndex >= 0 ? <>{title.slice(0, shortcutIndex)}<u>{title.slice(shortcutIndex, shortcutIndex + 1)}</u>{title.slice(shortcutIndex + 1)}</> : title}</span>
           </button>
         </Collapsible.Trigger>
+        {currency ? <div aria-label={`${title} subtotal`} role="group" style={computeStyles.subtotal}>{currencyFormat.format(totalCents(items as readonly MetadataFeeItem[]) / 100)}</div> : null}
         {currency ? <div aria-label={`${title} actions`} role="group" style={computeStyles.headerActions}>
           <button disabled={pending} aria-label={`Add ${title}`} className="compute-icon" onClick={event => (collection === "fees" ? onAddFee : onAddFund)(event.currentTarget)} style={{ ...iconButtonStyle, ...computeStyles.iconAction }} title={collection === "fees" ? "Add Fee" : "Add Fund"} type="button"><ComputeIcon name="add" /></button>
         </div> : null}
@@ -146,6 +148,7 @@ export function ComputeDetails({
   setOpenSegment(segment: string): void;
   shortcuts: ReadonlyMap<string, string>;
 }): JSX.Element {
+  const saveStatusId = useId();
   const dirty = computeQueueStore(state => state.tasks.some(task => task.session === session));
   const pending = computeQueueStore(state => state.tasks.some(task => task.session === session && task.status === "processing"));
   const error = computeQueueStore(state => state.error ?? state.tasks.find(task => task.session === session && task.error)?.error);
@@ -160,18 +163,26 @@ export function ComputeDetails({
         <FiscalSegment session={session} collection={null} onAddFee={onAddFee} onAddFund={onAddFund} currency={false} empty="No fee factors found." items={data.fee_factors ?? []} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FEEFACTOR} shortcut={shortcuts.get(segments.FEEFACTOR) ?? null} title="Factors" />
         <FiscalSegment session={session} collection="fees" onAddFee={onAddFee} onAddFund={onAddFund} currency empty="No fees found." items={fees} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FEE} shortcut={shortcuts.get(segments.FEE) ?? null} title="Fees" />
         <FiscalSegment session={session} collection="funds" onAddFee={onAddFee} onAddFund={onAddFund} currency empty="No fund distributions found." items={funds} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FUND} shortcut={shortcuts.get(segments.FUND) ?? null} title="Funds" />
+        <div aria-label="Row status legend" role="note" style={computeStyles.legend}>
+          <span><span aria-hidden="true" style={{ color: "#15803d" }}>●</span> No ambiguity reported</span>
+          <span><span aria-hidden="true" style={{ color: "#b45309" }}>●</span> Ambiguous / saving</span>
+          <span><span aria-hidden="true" style={{ color: "#B42318" }}>●</span> Save failed</span>
+        </div>
         <div aria-label="Compute total" role="group" style={{ ...computeStyles.row, ...computeStyles.total }}>
-          <span style={{ ...computeStyles.label, gridColumn: "1 / 3" }}>Total</span>
-          <span style={{ ...computeStyles.value, gridColumn: "3" }}>{currencyFormat.format(feeTotal / 100)}</span>
+          <span style={{ ...computeStyles.label, ...computeStyles.totalText, gridColumn: "1 / 3" }}>Total fees</span>
+          <span style={{ ...computeStyles.value, ...computeStyles.totalText, gridColumn: "3" }}>{currencyFormat.format(feeTotal / 100)}</span>
         </div>
         {feeTotal !== fundTotal ? <div role="alert" style={{ ...capabilityStyles.notice("error"), alignSelf: "center" }}>
           Fees ({currencyFormat.format(feeTotal / 100)}) and Funds ({currencyFormat.format(fundTotal / 100)}) do not match.
         </div> : null}
         {error ? <div aria-label="Save failed" role="alert" style={capabilityStyles.notice("error")}>{error}</div> : null}
+        <p id={saveStatusId} aria-label="Save status" role="status" style={computeStyles.saveStatus}>
+          {pending ? "Saving changes…" : dirty ? "Unsaved changes. Save changes before endorsing." : "Ready to endorse."}
+        </p>
         <div aria-label="Compute actions" role="group" style={{ ...capabilityStyles.computeActions, gap: formStyles.actions.gap, flexWrap: formStyles.actions.flexWrap }}>
+          <ConfButton aria-describedby={saveStatusId} disabled={dirty} label="Endorse" onConfirm={onEndorse} />
           <ConfButton disabled={!dirty || pending} label="Save" requireConfirmation={false} onConfirm={() => computeQueueStore.getState().save(session)} />
-          <ConfButton disabled={!dirty || pending} label="Cancel" requireConfirmation={false} variant="secondary" onConfirm={() => computeQueueStore.getState().discard(session)} />
-          <ConfButton disabled={dirty} label="Endorse" onConfirm={onEndorse} />
+          <ConfButton disabled={!dirty || pending} label="Discard changes" requireConfirmation={false} variant="secondary" onConfirm={() => computeQueueStore.getState().discard(session)} />
         </div>
       </div>
     </section>

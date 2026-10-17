@@ -78,7 +78,7 @@ describe("ComputePanel", () => {
     expect(factorRow).toHaveTextContent("40");
     expect(factorRow).not.toHaveTextContent("$40.00");
     fireEvent.click(screen.getByRole("button", { name: /^Funds/i }));
-    expect(screen.getByText("$510.00", { exact: true })).toBeVisible();
+    expect(screen.getByText("$510.00", { exact: true, selector: ".compute-value" })).toBeVisible();
     expect(screen.queryByText(/\"amount\"/)).not.toBeInTheDocument();
 
     const actions = screen.getByRole("group", { name: "Compute actions" });

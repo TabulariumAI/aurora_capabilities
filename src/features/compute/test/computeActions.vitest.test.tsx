@@ -7,7 +7,7 @@ import { computeQueueStore } from "../store/computeQueueStore";
 beforeEach(() => { computeQueueStore.getState().reset(); vi.stubGlobal("indexedDB", new IDBFactory()); });
 afterEach(cleanup);
 
-it("keeps Save and Cancel visible, blocks Endorse for drafts, and restores on Cancel", async () => {
+it("keeps Save and Discard changes visible, blocks Endorse for drafts, and restores on discard", async () => {
   const client = { model: vi.fn(), patch: vi.fn() };
   await computeQueueStore.getState().restore("owner", { client, authToken: "token", onChange: vi.fn() });
   await computeQueueStore.getState().setModel("session", { model: { fee_factors: [], fees: [["Fee", "fee", "10.0"]], funds: [["Fund", "fund", "total_amount"]] }, etag: '"v1"' });
@@ -18,12 +18,16 @@ it("keeps Save and Cancel visible, blocks Endorse for drafts, and restores on Ca
   }
   render(<View />);
   expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
   await act(async () => { await computeQueueStore.getState().enqueue("session", { action: "add", fee: { name: "Extra", value: "2.50" } }); });
   expect(screen.getByRole("group", { name: "Compute total" })).toHaveTextContent("$12.50");
+  expect(screen.getByRole("status", { name: "Save status" })).toHaveTextContent("Unsaved changes. Save changes before endorsing.");
+  expect(screen.getByRole("button", { name: "Endorse" })).toHaveAccessibleDescription("Unsaved changes. Save changes before endorsing.");
   expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   expect(screen.getByRole("button", { name: "Endorse" })).toBeDisabled();
-  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() => expect(screen.getByRole("group", { name: "Compute total" })).toHaveTextContent("$10.00"));
   expect(client.patch).not.toHaveBeenCalled();
+  expect(screen.getByRole("status", { name: "Save status" })).toHaveTextContent("Ready to endorse.");
+  expect(screen.getByRole("button", { name: "Endorse" })).toBeEnabled();
 });

@@ -104,6 +104,9 @@ test("compute formats fees and funds and confirms endorsement", async ({ page },
   const root = page.locator("main");
 
   await expect(root.getByTestId("progress-view")).toHaveCount(0);
+  await expect(root.getByRole("status", { name: "Save status" })).toHaveText("Ready to endorse.");
+  await expect(root.getByRole("group", { name: "Funds subtotal" })).toHaveText("$75.00");
+  await expect(root.getByRole("note", { name: "Row status legend" })).toContainText("No ambiguity reported");
   await expect(root.locator("[data-metadata-context='true']")).toHaveCount(0);
   const feeFactors = root.getByRole("button", { name: "Factors" });
   const fees = root.getByRole("button", { name: "Fees", exact: true });
@@ -154,9 +157,9 @@ for (const width of [390, 840]) {
         await button.focus();
         await page.keyboard.press("Enter");
         expect(alerts).toHaveLength(count);
-        await page.keyboard.press("Enter");
-        await expect.poll(() => alerts.length).toBe(count + 1);
-        expect(alerts.at(-1)).toBe(`${action} ${name}: ${amount}`);
+        await expect(row.getByRole("button", { name: "Confirm", exact: true })).toHaveAttribute("data-armed", "true");
+        await expect(button).toHaveAttribute("data-armed", "false", { timeout: 6_000 });
+        expect(alerts).toHaveLength(count);
       }
       const count = alerts.length;
       await expect(row.getByRole("button", { name: `Formula ${name}`, exact: true })).toHaveCount(0);
@@ -186,7 +189,7 @@ for (const width of [390, 840]) {
     await root.getByRole("button", { name: "Fees", exact: true }).click();
     const feeRight = await root.locator("article").getByText("$125.00", { exact: true }).evaluate(node => node.getBoundingClientRect().right);
     await root.getByRole("button", { name: "Funds", exact: true }).click();
-    const fundRight = await root.getByText("$75.00", { exact: true }).evaluate(node => node.getBoundingClientRect().right);
+    const fundRight = await root.locator("article").getByText("$75.00", { exact: true }).evaluate(node => node.getBoundingClientRect().right);
     expect(factorRight).toBeGreaterThan(feeRight);
     expect(Math.abs(feeRight - fundRight)).toBeLessThanOrEqual(1);
     await root.getByRole("button", { name: "Factors", exact: true }).click();

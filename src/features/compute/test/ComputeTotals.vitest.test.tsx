@@ -17,8 +17,9 @@ describe("Compute totals", () => {
   it("sums fees rather than factors and stays visible outside the accordions", () => {
     render(<View data={{ fee_factors: [{ amount: "999", name: "Total Amount" }], fees: [{ amount: "26", formula: "26", name: "Recording" }, { amount: "3", formula: "3", name: "Party" }, { amount: "52", formula: "52", name: "Page" }, { amount: "10", formula: "10", name: "Reference" }], funds: [{ amount: "91", formula: "91", name: "Distribution" }] }} />);
     const total = screen.getByRole("group", { name: "Compute total" });
-    expect(within(total).getByText("Total", { exact: true })).toBeVisible();
+    expect(within(total).getByText("Total fees", { exact: true })).toBeVisible();
     expect(within(total).getByText("$91.00", { exact: true })).toBeVisible();
+    expect(screen.getByRole("group", { name: "Funds subtotal" })).toHaveTextContent("$91.00");
     expect(screen.queryByRole("alert")).toBeNull();
     for (const section of ["Factors", "Fees", "Funds"]) {
       fireEvent.click(screen.getByRole("button", { name: section }));
