@@ -156,6 +156,7 @@ export function ComputeDetails({
   const funds = data.funds ?? [];
   const feeTotal = totalCents(fees);
   const fundTotal = totalCents(funds);
+  const balanced = feeTotal === fundTotal;
   return (
     <section aria-label="Compute" style={computeStyles.root}>
       <style>{computeCss}</style>
@@ -172,17 +173,18 @@ export function ComputeDetails({
           <span style={{ ...computeStyles.label, ...computeStyles.totalText, gridColumn: "1 / 3" }}>Total fees</span>
           <span style={{ ...computeStyles.value, ...computeStyles.totalText, gridColumn: "3" }}>{currencyFormat.format(feeTotal / 100)}</span>
         </div>
-        {feeTotal !== fundTotal ? <div role="alert" style={{ ...capabilityStyles.notice("error"), alignSelf: "center" }}>
+        {!balanced ? <div role="alert" style={{ ...capabilityStyles.notice("error"), alignSelf: "center" }}>
           Fees ({currencyFormat.format(feeTotal / 100)}) and Funds ({currencyFormat.format(fundTotal / 100)}) do not match.
         </div> : null}
         {error ? <div aria-label="Save failed" role="alert" style={capabilityStyles.notice("error")}>{error}</div> : null}
-        <p id={saveStatusId} aria-label="Save status" role="status" style={computeStyles.saveStatus}>
-          {pending ? "Saving changes…" : dirty ? "Unsaved changes. Save changes before endorsing." : "Ready to endorse."}
+        <p aria-label="Save status" role="status" style={computeStyles.saveStatus}>
+          <span id={saveStatusId}>{pending ? "Saving changes…" : dirty ? "Unsaved changes. Save changes before endorsing." : !balanced ? "Fees and Funds must match before endorsing." : "Ready to endorse."}</span>
         </p>
         <div aria-label="Compute actions" role="group" style={{ ...capabilityStyles.computeActions, gap: formStyles.actions.gap, flexWrap: formStyles.actions.flexWrap }}>
-          <ConfButton aria-describedby={saveStatusId} disabled={dirty} label="Endorse" onConfirm={onEndorse} />
-          <ConfButton disabled={!dirty || pending} label="Save" requireConfirmation={false} onConfirm={() => computeQueueStore.getState().save(session)} />
-          <ConfButton disabled={!dirty || pending} label="Discard changes" requireConfirmation={false} variant="secondary" onConfirm={() => computeQueueStore.getState().discard(session)} />
+          {dirty ? <>
+            <ConfButton disabled={pending} label="Save" requireConfirmation={false} onConfirm={() => computeQueueStore.getState().save(session)} />
+            <ConfButton disabled={pending} label="Discard changes" requireConfirmation={false} variant="secondary" onConfirm={() => computeQueueStore.getState().discard(session)} />
+          </> : <ConfButton aria-describedby={saveStatusId} disabled={!balanced} label="Endorse" onConfirm={onEndorse} />}
         </div>
       </div>
     </section>

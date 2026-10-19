@@ -158,7 +158,7 @@ it("shows draft status and Save failure, and blocks Endorse until Save or Discar
   render(<View result={{ ...data, fees: [{ code: "queued:fees", name: "Extra", amount: "1.00", formula: "1.00" }, ...data.fees!] }} />);
   expect(screen.getByText("Added")).toBeVisible();
   expect(screen.getByRole("alert", { name: "Save failed" })).toHaveTextContent("Unavailable");
-  expect(screen.getByRole("button", { name: "Endorse" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Endorse" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
   expect(save).toHaveBeenCalledWith("session");
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));

@@ -100,12 +100,12 @@ test("composition renders batch-link progress below the accordion", async ({ pag
 });
 
 test("compute formats fees and funds and confirms endorsement", async ({ page }, testInfo) => {
-  await page.goto("/?capability=compute&state=ready");
+  await page.goto("/?capability=compute&state=ready&balanced=true");
   const root = page.locator("main");
 
   await expect(root.getByTestId("progress-view")).toHaveCount(0);
   await expect(root.getByRole("status", { name: "Save status" })).toHaveText("Ready to endorse.");
-  await expect(root.getByRole("group", { name: "Funds subtotal" })).toHaveText("$75.00");
+  await expect(root.getByRole("group", { name: "Funds subtotal" })).toHaveText("$125.00");
   await expect(root.getByRole("note", { name: "Row status legend" })).toContainText("No ambiguity reported");
   await expect(root.locator("[data-metadata-context='true']")).toHaveCount(0);
   const feeFactors = root.getByRole("button", { name: "Factors" });
@@ -119,7 +119,7 @@ test("compute formats fees and funds and confirms endorsement", async ({ page },
   await expect(funds.locator("..").locator(":scope > span")).toHaveText("1");
   await expect(root.locator("article").filter({ hasText: "$125.00" })).toContainText("Recording fee");
   await funds.click();
-  await expect(root.locator("article").filter({ hasText: "$75.00" })).toContainText("General fund");
+  await expect(root.locator("article").filter({ hasText: "$125.00" })).toContainText("General fund");
   const actions = root.getByRole("group", { name: "Compute actions" });
   await expect(actions).toHaveCSS("margin-top", "12px");
   await root.getByRole("button", { name: "Endorse" }).click();
@@ -129,6 +129,17 @@ test("compute formats fees and funds and confirms endorsement", async ({ page },
   await root.screenshot({ path: testInfo.outputPath("compute-ready.png") });
 });
 
+test("compute blocks endorsement for mismatched totals and hides draft actions", async ({ page }, testInfo) => {
+  await page.goto("/?capability=compute&state=ready");
+  const root = page.getByRole("region", { name: "Compute", exact: true });
+  await expect(root.getByRole("alert")).toHaveText("Fees ($125.00) and Funds ($75.00) do not match.");
+  await expect(root.getByRole("button", { name: "Endorse" })).toBeDisabled();
+  await expect(root.getByRole("button", { name: "Endorse" })).toHaveAccessibleDescription("Fees and Funds must match before endorsing.");
+  await expect(root.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
+  await expect(root.getByRole("button", { name: "Discard changes" })).toHaveCount(0);
+  await expect(root.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0);
+  await root.screenshot({ path: testInfo.outputPath("compute-mismatch.png") });
+});
 for (const width of [390, 840]) {
   test(`compute controls fit and confirm without changing data at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
