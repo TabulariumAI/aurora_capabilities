@@ -29,9 +29,10 @@ export type ManifestOperation = "status" | "submit" | "data";
 
 export type ComputeResult = Pick<MetadataPayload, "fee_factors" | "fees" | "funds">;
 export type CompositionResult = Pick<MetadataPayload, "chain" | "history">;
-export type CompositionBatch =
-  | { group: "user"; batch: { code: string; id: string; name: string } }
-  | { group: "sub"; batch: { name: string } };
+export type CompositionBatch = {
+  group: "user" | "sub";
+  batch: { code: string; id: string; name: string };
+};
 
 export const COMPOSITION_SEGMENTS = {
   CHAIN: "chain",
