@@ -1,3 +1,4 @@
+import type { ResourceRequest } from "aurora-core";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCompute } from "../hook/useCompute";
@@ -31,21 +32,21 @@ afterEach(() => {
 
 describe("useCompute", () => {
   it.each([false, true])("does not submit after a failed or canceled eTag request; canceled=%s", async canceled => {
-    let resolve!: (etag: string) => void;
-    let reject!: (error: Error) => void;
-    const resource = new Promise<string>((done, fail) => { resolve = done; reject = fail; });
+    let callback!: ResourceRequest["callback"];
     const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), submit: vi.fn(), status: vi.fn(), data: vi.fn() };
     const onComplete = vi.fn();
     const onError = vi.fn();
     const props = {
-      onResource: vi.fn(() => resource),
+      onResource: vi.fn((request: ResourceRequest) => { callback = request.callback; }),
       request: { document: "document.pdf", authToken: "t", capability: "compute" as const, refresh: false, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "resource", session: "s" },
       onComplete, onError, onProgress: vi.fn(), segments, workerClient,
     };
     const view = renderHook(() => useCompute(props));
     await waitFor(() => expect(props.onResource).toHaveBeenCalledOnce());
+    expect(workerClient.submit).not.toHaveBeenCalled();
+    expect(workerClient.status).not.toHaveBeenCalled();
     if (canceled) view.unmount();
-    await act(async () => canceled ? resolve("metadata-etag") : reject(new Error("Resource unavailable")));
+    await act(async () => callback(canceled ? { ok: true, data: "metadata-etag" } : { ok: false, error: "Resource unavailable" }));
     expect(workerClient.submit).not.toHaveBeenCalled();
     expect(workerClient.status).not.toHaveBeenCalled();
     expect(workerClient.data).not.toHaveBeenCalled();
@@ -55,9 +56,9 @@ describe("useCompute", () => {
   });
 
   it.each([false, true])("requests the metadata eTag only for normal opening; refresh=%s", async refresh => {
-    const onResource = vi.fn(async () => {
+    const onResource = vi.fn((request: ResourceRequest) => {
       if (refresh) throw new Error("Refresh must not request metadata");
-      return "metadata-etag";
+      request.callback({ ok: true, data: "metadata-etag" });
     });
     const submit = vi.fn(async () => ({ status: "completed", data: "" }));
     const onComplete = vi.fn();
@@ -69,7 +70,7 @@ describe("useCompute", () => {
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
     if (refresh) expect(onResource).not.toHaveBeenCalled();
-    else expect(onResource).toHaveBeenCalledExactlyOnceWith({ resource: "metadata_etag" });
+    else expect(onResource).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ resource: "metadata_etag", session: "s", callback: expect.any(Function) }));
     expect(submit).toHaveBeenCalledExactlyOnceWith("t", "s", refresh ? null : "metadata-etag", refresh);
   });
   it.each([false, true])("submits once and polls status before retrieving data; refresh=%s", async refresh => {
@@ -78,7 +79,7 @@ describe("useCompute", () => {
     const calls: string[] = [];
     const data = { fee_factors: [], fees: [], funds: [] };
     renderHook(() => useCompute({
-      onResource: async () => "metadata-etag",
+      onResource: (request: ResourceRequest) => request.callback({ ok: true, data: "metadata-etag" }),
       request: { document: "document.pdf", authToken: "t", capability: "compute", refresh, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r", session: "s" },
       onComplete,
       onError: vi.fn(),
@@ -105,7 +106,7 @@ describe("useCompute", () => {
     const onError = vi.fn();
     const onProgress = vi.fn();
     renderHook(() => useCompute({
-      onResource: async () => "metadata-etag",
+      onResource: (request: ResourceRequest) => request.callback({ ok: true, data: "metadata-etag" }),
       request: { document: "document.pdf", authToken: "t", capability: "compute", refresh, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-data", session: "s" },
       onComplete: vi.fn(),
       onError,
@@ -153,7 +154,7 @@ it.each([[false, false], [false, true], [true, false], [true, true]])("publishes
     status: vi.fn(async () => ({ status: "completed", data: null })),
     data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })),
   };
-  const props = { onResource: async () => "metadata-etag", segments, request: { authToken: "t", capability: "compute" as const, refresh, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-compute", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
+  const props = { onResource: (request: ResourceRequest) => request.callback({ ok: true, data: "metadata-etag" }), segments, request: { authToken: "t", capability: "compute" as const, refresh, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-compute", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
   const view = renderHook(() => useCompute(props));
   await waitFor(() => expect(workerClient.data).toHaveBeenCalledOnce());
   if (canceled) view.unmount();
@@ -181,7 +182,7 @@ it.each([500, 7500, 10000].flatMap(intervalMs => [false, true].map(complete => (
   };
   const view = renderHook(() => useCompute({
     request: { document: "document.pdf", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs, requestId: `budget-compute-${complete}`, session: "budget-session" },
-    onComplete, onError, onProgress, workerClient, onResource: async () => "metadata-etag", segments,
+    onComplete, onError, onProgress, workerClient, onResource: (request: ResourceRequest) => request.callback({ ok: true, data: "metadata-etag" }), segments,
   }));
   try {
     await act(async () => { await vi.advanceTimersByTimeAsync(202000); });

@@ -6,6 +6,15 @@ export const computeCss = `
   .compute-icon:hover, .compute-icon:focus-visible {
     background-color: var(--accent-surface) !important;
   }
+  @container compute (max-width: 32rem) {
+    .compute-row, .compute-total {
+      grid-template-columns: 1rem minmax(0, 1fr) max-content !important;
+    }
+    .compute-row > .compute-row-actions {
+      grid-column: 2 / -1 !important;
+      grid-row: auto !important;
+    }
+  }
 `;
 
 export const computeStyles = {
@@ -22,6 +31,8 @@ export const computeStyles = {
   fiscalFields: { ...formStyles.fields, border: 0, minWidth: 0 },
   fiscalInputs: { ...formStyles.fields, gridTemplateColumns: "minmax(0, 2fr) minmax(0, 1fr)", minWidth: 0 },
   root: {
+    containerName: "compute",
+    containerType: "inline-size",
     color: "var(--title-ink)",
     display: "flex",
     flex: "1 1 auto",
@@ -71,6 +82,7 @@ export const computeStyles = {
     font: "inherit",
     fontWeight: 700,
     gap: "0.875rem",
+    minHeight: formStyles.button.height,
     minWidth: 0,
     padding: 0,
     textAlign: "left",

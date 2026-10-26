@@ -4,6 +4,7 @@ import { useProgress } from "../../progressview/hook/useProgress";
 import { CAPABILITY_SHORTCUTS, type ComputePanelProps } from "../../../shared/type/capability.types";
 import { computeQueueStore } from "../store/computeQueueStore";
 import { ComputeDetails } from "./ComputeDetails";
+import { ComputePlaceholder } from "./ComputePlaceholder";
 import { useCompute } from "../hook/useCompute";
 import { useComputeStore } from "../store/computeStore";
 
@@ -29,6 +30,8 @@ export function ComputePanel(props: ComputePanelProps): JSX.Element {
       />
     );
   }
+
+  if (!props.request.refresh && store.status !== "error") return <ComputePlaceholder />;
 
   return (
     <ProgressView

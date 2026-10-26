@@ -373,7 +373,7 @@ export type ManifestWorkerClient = {
 };
 
 export type ComputePanelProps = {
-  onResource(request: ResourceRequest): Promise<string | null>;
+  onResource(request: ResourceRequest): void;
   onComplete: (
     terminal: CapabilityComplete<"compute", ComputeResult>,
   ) => void;
@@ -1411,3 +1411,9 @@ Report exactly:
 
 Do not report completion while any package, prerequisite, host, functional,
 visual, live-browser, cleanup, or boundary gate is unverified.
+
+### Prebuilt Compute loading
+
+`generateCompute` starts the initial calculation from the configured indexing-completed background action without opening a panel. Open and Restore show content-shaped Factors, Fees, Funds, and total placeholders while Index supplies the session metadata eTag through the host exchange. The placeholders reuse Compute header, row, action, total, and responsive layout styles with Core loading semantics and skeleton styling. Unknown amounts and counts are neutral shapes hidden from assistive technology; no loading controls are interactive. Missing metadata does not submit a calculation; metadata failures reach the existing error/retry surface. Matching running gateway calculations are reused, and failures are returned without restarting them. Normal opening retrieves the current result through the existing queue projection so local drafts remain present. Header Refresh is enabled, remains disabled for pending drafts, and uses the existing recalculate route without an eTag.
+
+Compute follows Metadata's named container-query pattern at widths up to 32rem. Fiscal rows keep their status, label, and amount together, with actions below. The total uses the same three-column layout without reserving space for actions.

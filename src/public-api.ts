@@ -14,7 +14,7 @@ export { useCompositionStore } from "./features/composition/store/compositionSto
 export { useRecordStore } from "./features/record/store/recordStore";
 export { useRedactStore } from "./features/redact/store/redactStore";
 export { useManifestStore } from "./features/manifest/store/manifestStore";
-export { createComputeWorkerClient } from "./features/compute/worker/computeWorkerClient";
+export { createComputeWorkerClient, generateCompute } from "./features/compute/worker/computeWorkerClient";
 export { createCompositionWorkerClient } from "./features/composition/worker/compositionWorkerClient";
 export { createRecordWorkerClient } from "./features/record/worker/recordWorkerClient";
 export { createRedactWorkerClient } from "./features/redact/worker/redactWorkerClient";

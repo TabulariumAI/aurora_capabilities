@@ -200,7 +200,7 @@ export type ManifestWorkerClient = {
 export type ComputePanelProps = {
   onAddFee(anchor: HTMLElement): void;
   onAddFund(anchor: HTMLElement): void;
-  onResource(request: ResourceRequest): Promise<string | null>;
+  onResource(request: ResourceRequest): void;
   onComplete: (terminal: CapabilityComplete<"compute", ComputeResult>) => void;
   onEndorse: () => void;
   onError: (failure: ComputeFailure) => void;

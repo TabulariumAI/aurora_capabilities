@@ -169,7 +169,7 @@ export function ComputeDetails({
           <span><span aria-hidden="true" style={{ color: "#b45309" }}>●</span> Ambiguous / saving</span>
           <span><span aria-hidden="true" style={{ color: "#B42318" }}>●</span> Save failed</span>
         </div>
-        <div aria-label="Compute total" role="group" style={{ ...computeStyles.row, ...computeStyles.total }}>
+        <div aria-label="Compute total" className="compute-total" role="group" style={{ ...computeStyles.row, ...computeStyles.total }}>
           <span style={{ ...computeStyles.label, ...computeStyles.totalText, gridColumn: "1 / 3" }}>Total fees</span>
           <span style={{ ...computeStyles.value, ...computeStyles.totalText, gridColumn: "3" }}>{currencyFormat.format(feeTotal / 100)}</span>
         </div>

@@ -15,12 +15,6 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
   useEffect(() => {
     useComputeStore.getState().open(request, segments.FEE);
     if (!useComputeStore.getState().setRunning(request.requestId)) return;
-    const queue = computeQueueStore.getState();
-    if (!request.refresh && queue.bases[request.session] && queue.models[request.session]) {
-      useComputeStore.getState().setReady(request.requestId);
-      onComplete({ capability: "compute", outcome: "completed", requestId: request.requestId, result: queue.data[request.session], session: request.session });
-      return;
-    }
     let canceled = false;
     let operation: ComputeFailure["operation"] = "submit";
     let progressId = "start";
@@ -42,7 +36,12 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
 
     void (async () => {
       try {
-        const etag = request.refresh ? null : await onResource({ resource: "metadata_etag" });
+        const etag = request.refresh ? null : await new Promise<string | null>((resolve, reject) => {
+          onResource({ resource: "metadata_etag", session: request.session, callback(result) {
+            if (result.ok) resolve(result.data as string | null);
+            else reject(result);
+          } });
+        });
         if (canceled) return;
         let response = await client.submit(request.authToken, request.session, etag, request.refresh);
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };

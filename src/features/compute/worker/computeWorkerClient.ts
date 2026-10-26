@@ -1,5 +1,11 @@
-import type { ComputeWorkerClient, ComputeModelClient, WorkerConfig } from "../../../shared/type/capability.types";
+import type { ComputeWorkerClient, ComputeModelClient, ComputeRequest, WorkerConfig } from "../../../shared/type/capability.types";
 import { dataCompute, statusCompute, submitCompute, requestComputeModel } from "./ComputeWorker";
+
+export async function generateCompute(input: Pick<ComputeRequest, "authToken" | "session"> & { apiGatewayUrl: string }) {
+  const response = await submitCompute(input.apiGatewayUrl, input.authToken, input.session, null, false);
+  if (response.status === "error") throw { error: response.data };
+  return response;
+}
 
 export function createComputeWorkerClient(config: WorkerConfig): ComputeWorkerClient & ComputeModelClient {
   return {
