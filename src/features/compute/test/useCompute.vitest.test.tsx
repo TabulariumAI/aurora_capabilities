@@ -2,7 +2,7 @@ import type { ResourceRequest } from "aurora-core";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useCompute } from "../hook/useCompute";
-import { useComputeStore } from "../store/computeStore";
+import { computeNeedsRefresh, updateComputeMetadata, useComputeStore } from "../store/computeStore";
 import { computeQueueStore } from "../store/computeQueueStore";
 
 const segments = {
@@ -31,6 +31,28 @@ afterEach(() => {
 });
 
 describe("useCompute", () => {
+  it("retains newer metadata events when an earlier resource read settles", async () => {
+    let callback!: ResourceRequest["callback"];
+    const onComplete = vi.fn();
+    const onError = vi.fn();
+    renderHook(() => useCompute({
+      request: { document: "d", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "metadata-order", session: "s" },
+      onResource: request => { callback = request.callback; },
+      onComplete, onError, onProgress: vi.fn(), segments,
+      workerClient: {
+        model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: "model-version" }),
+        submit: async () => ({ status: "completed", data: "" }),
+        status: async () => ({ status: "completed", data: "" }),
+        data: async () => ({ result: { fee_factors: [], fees: [], funds: [] }, metadataEtag: "old-version" }),
+      },
+    }));
+    updateComputeMetadata({ session: "s", etag: "new-version" });
+    await act(async () => callback({ ok: true, data: "old-version" }));
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
+    expect(onError).not.toHaveBeenCalled();
+    expect(useComputeStore.getState().clientEtag).toBe("new-version");
+    expect(computeNeedsRefresh(useComputeStore.getState())).toBe(true);
+  });
   it.each([false, true])("does not submit after a failed or canceled eTag request; canceled=%s", async canceled => {
     let callback!: ResourceRequest["callback"];
     const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), submit: vi.fn(), status: vi.fn(), data: vi.fn() };
@@ -55,9 +77,8 @@ describe("useCompute", () => {
     else expect(onError).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ operation: "submit", error: expect.objectContaining({ error: "Resource unavailable" }) }));
   });
 
-  it.each([false, true])("requests the metadata eTag only for normal opening; refresh=%s", async refresh => {
+  it.each([false, true])("reads metadata for freshness and omits it from forced calculation; refresh=%s", async refresh => {
     const onResource = vi.fn((request: ResourceRequest) => {
-      if (refresh) throw new Error("Refresh must not request metadata");
       request.callback({ ok: true, data: "metadata-etag" });
     });
     const submit = vi.fn(async () => ({ status: "completed", data: "" }));
@@ -66,11 +87,10 @@ describe("useCompute", () => {
       onResource,
       request: { document: "document.pdf", authToken: "t", capability: "compute", refresh, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "etag", session: "s" },
       onComplete, onError: vi.fn(), onProgress: vi.fn(), segments,
-      workerClient: { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), submit, status: async () => ({ status: "completed", data: "" }), data: async () => ({ fee_factors: [], fees: [], funds: [] }) },
+      workerClient: { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), submit, status: async () => ({ status: "completed", data: "" }), data: async () => ({ result: { fee_factors: [], fees: [], funds: [] }, metadataEtag: "" }) },
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce());
-    if (refresh) expect(onResource).not.toHaveBeenCalled();
-    else expect(onResource).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ resource: "metadata_etag", session: "s", callback: expect.any(Function) }));
+    expect(onResource).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ resource: "metadata_etag", session: "s", callback: expect.any(Function) }));
     expect(submit).toHaveBeenCalledExactlyOnceWith("t", "s", refresh ? null : "metadata-etag", refresh);
   });
   it.each([false, true])("submits once and polls status before retrieving data; refresh=%s", async refresh => {
@@ -88,7 +108,7 @@ describe("useCompute", () => {
       workerClient: { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }),
         submit: vi.fn(async () => { calls.push("submit"); return { data: null, status: "processing" }; }),
         status: vi.fn(async () => { calls.push("status"); return { data: null, status: calls.filter((v) => v === "status").length > 1 ? "completed" : "processing" }; }),
-        data: vi.fn(async () => { calls.push("data"); return data; }),
+        data: vi.fn(async () => { calls.push("data"); return ({ result: data, metadataEtag: "" }); }),
       },
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
@@ -134,7 +154,7 @@ describe("useCompute", () => {
       data: vi.fn(),
     };
     renderHook(() => useCompute({
-      onResource: vi.fn(),
+      onResource: (request: ResourceRequest) => request.callback({ ok: true, data: "metadata-etag" }),
       request: { document: "document.pdf", authToken: "t", capability: "compute", refresh: true, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "refresh-failure", session: "s" },
       onComplete, onError, onProgress: vi.fn(), segments, workerClient,
     }));
@@ -152,7 +172,7 @@ it.each([[false, false], [false, true], [true, false], [true, true]])("publishes
   const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }),
     submit: vi.fn(async () => ({ status: "completed", data: null })),
     status: vi.fn(async () => ({ status: "completed", data: null })),
-    data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })),
+    data: vi.fn(() => new Promise<{ result: typeof data; metadataEtag: string }>((resolve) => { finish = result => resolve({ result, metadataEtag: "" }); })),
   };
   const props = { onResource: (request: ResourceRequest) => request.callback({ ok: true, data: "metadata-etag" }), segments, request: { authToken: "t", capability: "compute" as const, refresh, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-compute", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
   const view = renderHook(() => useCompute(props));
@@ -178,7 +198,7 @@ it.each([500, 7500, 10000].flatMap(intervalMs => [false, true].map(complete => (
   const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }),
     submit: vi.fn(async () => ({ status: "processing", data: null })),
     status: vi.fn(async () => ({ status: "processing", data: null })),
-    data: vi.fn(async () => ({ fee_factors: [], fees: [], funds: [] })),
+    data: vi.fn(async () => ({ result: { fee_factors: [], fees: [], funds: [] }, metadataEtag: "" })),
   };
   const view = renderHook(() => useCompute({
     request: { document: "document.pdf", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs, requestId: `budget-compute-${complete}`, session: "budget-session" },

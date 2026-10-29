@@ -1,1 +1,1 @@
-export type { ComputePanelProps, ComputeRequest, ComputeResult, ComputeWorkerClient, ComputeFailure } from "../../../shared/type/capability.types";
+export type { ComputePanelProps, ComputeRequest, ComputeResult, ComputeData, ComputeWorkerClient, ComputeFailure } from "../../../shared/type/capability.types";

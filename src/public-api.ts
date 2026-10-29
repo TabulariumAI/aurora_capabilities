@@ -9,7 +9,7 @@ export { useComposition } from "./features/composition/hook/useComposition";
 export { useRecord } from "./features/record/hook/useRecord";
 export { useRedact } from "./features/redact/hook/useRedact";
 export { useManifest } from "./features/manifest/hook/useManifest";
-export { useComputeStore } from "./features/compute/store/computeStore";
+export { useComputeStore, updateComputeMetadata, computeNeedsRefresh } from "./features/compute/store/computeStore";
 export { useCompositionStore } from "./features/composition/store/compositionStore";
 export { useRecordStore } from "./features/record/store/recordStore";
 export { useRedactStore } from "./features/redact/store/redactStore";

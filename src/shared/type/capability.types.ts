@@ -150,8 +150,10 @@ export type ComputeWorkerClient = {
   model(token: string, session: string): Promise<ComputeResource>;
   submit(token: string, session: string, etag: string | null, refresh: boolean): Promise<CapabilityPoll>;
   status(token: string, session: string): Promise<CapabilityPoll>;
-  data(token: string, session: string): Promise<ComputeResult>;
+  data(token: string, session: string): Promise<ComputeData>;
 };
+
+export type ComputeData = { result: ComputeResult; metadataEtag: string };
 
 export type ComputeModel = { fee_factors: string[] | null; fees: [string, string, string][]; funds: [string, string, string][] };
 export type FundInput = { name: string; value: string };

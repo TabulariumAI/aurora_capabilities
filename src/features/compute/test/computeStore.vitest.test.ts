@@ -7,7 +7,7 @@ describe("compute store", () => {
     const request = { document: "document.pdf", authToken: "t", capability: "compute" as const, refresh: false, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r1", session: "s1" };
     useComputeStore.getState().open(request, "fee");
     expect(useComputeStore.getState()).toMatchObject({ openSegment: "fee", status: "loading", visible: true });
-    useComputeStore.getState().setReady("stale");
+    useComputeStore.getState().setReady("stale", "");
     expect(useComputeStore.getState().status).toBe("loading");
     useComputeStore.getState().clearSession("s1");
     expect(useComputeStore.getState()).toMatchObject({ status: "idle", visible: false });
@@ -30,7 +30,7 @@ describe("compute store", () => {
     const request = { document: "document.pdf", authToken: "t", capability: "compute" as const, refresh: false, documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r1", session: "s1" };
     useComputeStore.getState().open(request, "fee");
 
-    useComputeStore.getState().setReady(request.requestId);
+    useComputeStore.getState().setReady(request.requestId, "");
 
     expect(useComputeStore.getState()).toMatchObject({ status: "ready", visible: true });
   });

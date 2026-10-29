@@ -3,7 +3,7 @@ import type { ProgressEvent } from "../../progressview/type/progress.types";
 import { pollSteps, workerError } from "../../../shared/worker/capabilityHttp";
 import type { ComputeFailure, ComputePanelProps } from "../../../shared/type/capability.types";
 import { computeQueueStore } from "../store/computeQueueStore";
-import { useComputeStore } from "../store/computeStore";
+import { updateComputeMetadata, useComputeStore } from "../store/computeStore";
 import { createComputeWorkerClient } from "../worker/computeWorkerClient";
 
 const isComplete = (status: unknown) => status === "completed";
@@ -36,14 +36,16 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
 
     void (async () => {
       try {
-        const etag = request.refresh ? null : await new Promise<string | null>((resolve, reject) => {
+        const generation = useComputeStore.getState().metadataGeneration;
+        const etag = await new Promise<string | null>((resolve, reject) => {
           onResource({ resource: "metadata_etag", session: request.session, callback(result) {
             if (result.ok) resolve(result.data as string | null);
             else reject(result);
           } });
         });
         if (canceled) return;
-        let response = await client.submit(request.authToken, request.session, etag, request.refresh);
+        if (useComputeStore.getState().metadataGeneration === generation) updateComputeMetadata({ session: request.session, etag });
+        let response = await client.submit(request.authToken, request.session, request.refresh ? null : etag, request.refresh);
         if (isFailed(response.status)) throw { error: typeof response.data === "string" ? response.data : "Compute request failed." };
         operation = "status";
         progressId = "status";
@@ -72,7 +74,7 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
         progressId = "details";
         message = "Preparing fee details...";
         onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
-        const result = await client.data(request.authToken, request.session);
+        const { result, metadataEtag } = await client.data(request.authToken, request.session);
         if (canceled) return;
         onProgress({ jobId: `${request.requestId}-complete`, message: "Fee calculation complete.", phase: "started" });
         onProgress({ jobId: `${request.requestId}-complete`, message: "Fee calculation complete.", phase: "completed" });
@@ -81,7 +83,7 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
         await computeQueueStore.getState().setModel(request.session, resource);
         await computeQueueStore.getState().setResult(request.session, result);
         if (canceled) return;
-        useComputeStore.getState().setReady(request.requestId);
+        useComputeStore.getState().setReady(request.requestId, metadataEtag);
         onComplete({ capability: "compute", outcome: "completed", requestId: request.requestId, result, session: request.session });
       } catch (error) {
         if (canceled) return;
@@ -92,5 +94,5 @@ export function useCompute({ onComplete, onError, onProgress, onResource, reques
     return () => {
       canceled = true;
     };
-  }, [client, onComplete, onError, onProgress, request, segments.FEE]);
+  }, [client, onComplete, onError, onProgress, onResource, request, segments.FEE]);
 }

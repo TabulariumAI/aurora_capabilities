@@ -1,6 +1,7 @@
 import type { CapabilityError, CapabilityPoll } from "../type/capability.types";
 
 type RawResponse = {
+  metadata_etag?: string;
   model?: unknown;
   etag?: string;
   code?: string;
