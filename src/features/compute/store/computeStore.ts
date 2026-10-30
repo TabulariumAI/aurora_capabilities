@@ -4,7 +4,7 @@ import type { CapabilityStatus, ComputeFailure, ComputeRequest } from "../../../
 
 type ComputeStoreState = {
   metadataGeneration: number;
-  metadataEtag: string | null;
+  metadataEtag: string | null | undefined;
   clientEtag: string | null;
   failure: ComputeFailure | null;
   openSegment: string | null;
@@ -19,7 +19,7 @@ type ComputeStoreState = {
   reset(): void;
   setError(failure: ComputeFailure): void;
   setOpenSegment(segment: string): void;
-  setReady(requestId: string, metadataEtag: string): void;
+  setReady(requestId: string, metadataEtag: string | undefined): void;
   setRunning(requestId: string): boolean;
 };
 
@@ -74,5 +74,5 @@ export function updateComputeMetadata({ session, etag }: MetadataUpdate): void {
 }
 
 export function computeNeedsRefresh(state: ComputeStoreState): boolean {
-  return state.metadataEtag !== null && state.metadataEtag !== state.clientEtag;
+  return typeof state.metadataEtag === "string" && state.metadataEtag !== state.clientEtag;
 }

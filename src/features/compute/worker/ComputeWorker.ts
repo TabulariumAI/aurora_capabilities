@@ -19,8 +19,7 @@ export async function dataCompute(apiBaseUrl: string, token: string, session: st
   const response = await capabilityFetch(token, `${apiBaseUrl}/v1/compute/${session}/data`, { method: "GET" });
   if (response.status !== "completed") throw { code: "compute_not_completed", details: response, error: response.status };
   if (typeof response.data !== "string" || !response.data) throw { code: "parse_error", error: "Computedata path is missing." };
-  if (typeof response.metadata_etag !== "string") throw { code: "parse_error", error: "Compute metadata ETag is missing." };
   const data = await blobJson(response.data);
   if (!data || typeof data !== "object") throw { code: "parse_error", error: "Computedata is not a valid object." };
-  return { result: data as ComputeResult, metadataEtag: response.metadata_etag };
+  return { result: data as ComputeResult, ...(typeof response.metadata_etag === "string" ? { metadataEtag: response.metadata_etag } : {}) };
 }

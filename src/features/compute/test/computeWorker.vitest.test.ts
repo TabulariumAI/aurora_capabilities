@@ -2,6 +2,33 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { createComputeWorkerClient } from "../worker/computeWorkerClient";
 
 describe("compute worker client", () => {
+  it.each([
+    [{ status: "processing", data: "https://blob/result.json" }, "compute_not_completed"],
+    [{ status: "completed", data: "" }, "parse_error"],
+  ])("rejects an unavailable result before downloading: %j", async (response, code) => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(new Response(JSON.stringify(response)));
+    await expect(createComputeWorkerClient({ apiBaseUrl: "x" }).data("t", "s")).rejects.toMatchObject({ code });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("retains download failures when source freshness is unavailable", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "completed", data: "https://blob/result.json" })))
+      .mockResolvedValueOnce(new Response("Denied", { status: 403 }));
+    await expect(createComputeWorkerClient({ apiBaseUrl: "x" }).data("t", "s")).rejects.toMatchObject({ status: 403 });
+  });
+
+  it.each([undefined, null, 42])("downloads fees and funds without a source ETag, source=%s", async source => {
+    const result = { fee_factors: [], fees: [{ name: "Recording", amount: "40", formula: "40" }], funds: [{ name: "Archive", amount: "5", formula: "5" }] };
+    const fetch = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: "completed", data: "https://blob/result.json", metadata_etag: source })))
+      .mockResolvedValueOnce(new Response(JSON.stringify(result)));
+    await expect(createComputeWorkerClient({ apiBaseUrl: "x" }).data("t", "s"))
+      .resolves.toEqual({ result });
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch).toHaveBeenLastCalledWith("https://blob/result.json");
+  });
+
   it.each(["source-one", ""])("retains the generated source from the data envelope, source=%s", async source => {
     const result = { fee_factors: [], fees: [], funds: [] };
     vi.spyOn(globalThis, "fetch")

@@ -153,7 +153,7 @@ export type ComputeWorkerClient = {
   data(token: string, session: string): Promise<ComputeData>;
 };
 
-export type ComputeData = { result: ComputeResult; metadataEtag: string };
+export type ComputeData = { result: ComputeResult; metadataEtag?: string };
 
 export type ComputeModel = { fee_factors: string[] | null; fees: [string, string, string][]; funds: [string, string, string][] };
 export type FundInput = { name: string; value: string };
