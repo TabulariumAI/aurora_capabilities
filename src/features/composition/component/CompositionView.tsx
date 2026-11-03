@@ -3,8 +3,8 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import { useEffect, useState, type JSX } from "react";
 import { capabilityStyles } from "../../../shared/style/capabilityStyles";
 import { workerError } from "../../../shared/worker/capabilityHttp";
-import { ProgressView } from "../../progressview/component/ProgressView";
-import type { ProgressJob } from "../../progressview/type/progress.types";
+import { ProgressView } from "aurora-core";
+import type { ProgressJob } from "aurora-core";
 import {
   COMPOSITION_SEGMENTS,
   type CompositionPanelProps,
@@ -44,50 +44,6 @@ export function CompositionView({
   const batchJobId = `${requestId}-batch-link`;
   const chain = metadata.chain ?? [];
   const history = metadata.history;
-  const historyRows: Array<{
-    details: MetadataDetail[];
-    explanation?: string;
-    key: string;
-    label: string;
-    value?: string;
-  }> = [
-    ...(history?.conveyance ?? []).map((item, index) => ({
-      details: [
-        { label: "Date", value: item.date },
-        { label: "Grantors", value: item.grantors },
-        { label: "Title Company", value: item.title_company },
-        { label: "Amount", value: item.amount },
-      ],
-      explanation: item.explanation,
-      key: `conveyance-${index}`,
-      label: "Conveyance",
-      value: item.grantees,
-    })),
-    ...(history?.mortgage ?? []).map((item, index) => ({
-      details: [
-        { label: "Date", value: item.date },
-        { label: "Lender", value: item.lender },
-        { label: "Amount", value: item.amount },
-        { label: "Status", value: item.status },
-      ],
-      explanation: item.explanation,
-      key: `mortgage-${index}`,
-      label: "Mortgage",
-      value: item.borrowers,
-    })),
-    ...(history?.encumbrance ?? []).map((item, index) => ({
-      details: [
-        { label: "Date", value: item.date },
-        { label: "Type", value: item.enc_type },
-        { label: "Amount", value: item.amount },
-        { label: "Status", value: item.status },
-      ],
-      explanation: item.explanation,
-      key: `encumbrance-${index}`,
-      label: "Encumbrance",
-      value: item.parties,
-    })),
-  ];
 
   useEffect(() => {
     let canceled = false;
@@ -136,14 +92,7 @@ export function CompositionView({
       <section aria-label="Composition" style={capabilityStyles.composition}>
         <div aria-label="Composition accordion" data-panel-scroll="true" role="region" style={capabilityStyles.compositionAccordion}>
         <MetadataSegment
-          count={chain.length}
-          onOpenChange={(open) => {
-            if (open) setOpenSegment(COMPOSITION_SEGMENTS.CHAIN);
-          }}
-          open={openSegment === COMPOSITION_SEGMENTS.CHAIN}
-          shortcutKey={shortcuts.get(COMPOSITION_SEGMENTS.CHAIN) ?? null}
-          title="Chain"
-        >
+          resetKey={metadata} render={() => ({ count: chain.length, children: <>
           {chain.length ? chain.map((item, index) => (
             <MetadataRow
               callbacks={callbacks}
@@ -177,32 +126,85 @@ export function CompositionView({
               session={session}
             />
           )) : <EmptyRow message="No data found." />}
-        </MetadataSegment>
+        </> })}
+          onOpenChange={(open) => {
+            if (open) setOpenSegment(COMPOSITION_SEGMENTS.CHAIN);
+          }}
+          open={openSegment === COMPOSITION_SEGMENTS.CHAIN}
+          shortcutKey={shortcuts.get(COMPOSITION_SEGMENTS.CHAIN) ?? null}
+          title="Chain"
+        />
         <MetadataSegment
-          count={historyRows.length}
+          resetKey={metadata} render={() => {
+            const historyRows: Array<{
+              details: MetadataDetail[];
+              explanation?: string;
+              key: string;
+              label: string;
+              value?: string;
+            }> = [
+              ...(history?.conveyance ?? []).map((item, index) => ({
+                details: [
+                  { label: "Date", value: item.date },
+                  { label: "Grantors", value: item.grantors },
+                  { label: "Title Company", value: item.title_company },
+                  { label: "Amount", value: item.amount },
+                ],
+                explanation: item.explanation,
+                key: `conveyance-${index}`,
+                label: "Conveyance",
+                value: item.grantees,
+              })),
+              ...(history?.mortgage ?? []).map((item, index) => ({
+                details: [
+                  { label: "Date", value: item.date },
+                  { label: "Lender", value: item.lender },
+                  { label: "Amount", value: item.amount },
+                  { label: "Status", value: item.status },
+                ],
+                explanation: item.explanation,
+                key: `mortgage-${index}`,
+                label: "Mortgage",
+                value: item.borrowers,
+              })),
+              ...(history?.encumbrance ?? []).map((item, index) => ({
+                details: [
+                  { label: "Date", value: item.date },
+                  { label: "Type", value: item.enc_type },
+                  { label: "Amount", value: item.amount },
+                  { label: "Status", value: item.status },
+                ],
+                explanation: item.explanation,
+                key: `encumbrance-${index}`,
+                label: "Encumbrance",
+                value: item.parties,
+              })),
+            ];
+            return { count: historyRows.length, children: <>
+              {historyRows.length ? historyRows.map((item) => (
+                <MetadataRow
+                  callbacks={callbacks}
+                  confirmed={false}
+                  details={item.details}
+                  item={{ explanation: item.explanation, label: item.label, value: item.value }}
+                  key={item.key}
+                  selected={false}
+                  segment={COMPOSITION_SEGMENTS.HISTORY}
+                  session={session}
+                />
+              )) : <EmptyRow message="No history found." />}
+            </> };
+          }}
           onOpenChange={(open) => {
             if (open) setOpenSegment(COMPOSITION_SEGMENTS.HISTORY);
           }}
           open={openSegment === COMPOSITION_SEGMENTS.HISTORY}
           shortcutKey={shortcuts.get(COMPOSITION_SEGMENTS.HISTORY) ?? null}
           title="History"
-        >
-          {historyRows.length ? historyRows.map((item) => (
-            <MetadataRow
-              callbacks={callbacks}
-              confirmed={false}
-              details={item.details}
-              item={{ explanation: item.explanation, label: item.label, value: item.value }}
-              key={item.key}
-              selected={false}
-              segment={COMPOSITION_SEGMENTS.HISTORY}
-              session={session}
-            />
-          )) : <EmptyRow message="No history found." />}
-        </MetadataSegment>
+        />
         </div>
         {linkJob ? (
-          <ProgressView
+          <ProgressView autoScroll={true} highlightLast={true}
             completion={linkedBatch ? (
               <button onClick={() => onViewBatch(linkedBatch)} style={capabilityStyles.primaryButton} type="button">View batch</button>
             ) : undefined}

@@ -1,0 +1,68 @@
+import { useEffect } from "react";
+import { ErrorBoundary, ProgressView } from "aurora-core";
+import { useProgress } from "../../progressview/hook/useProgress";
+import { titleReportStyles } from "../style/titleReportStyles";
+import { useTitleReport } from "../hook/useTitleReport";
+import { useTitleReportStore } from "../store/titleReportStore";
+import type { TitleReportPanelProps } from "../type/titleReport.types";
+import { ChainPanel } from "./ChainPanel";
+
+export function TitleReportPanel({
+  onError,
+  onGenerated,
+  onLoaderChange,
+  onReadyChange,
+  onSession,
+  request,
+}: TitleReportPanelProps) {
+  const report = useTitleReportStore((state) => state.report);
+  const status = useTitleReportStore((state) => state.status);
+  const progress = useProgress(request.batch);
+  useTitleReport({
+    onError,
+    onGenerated,
+    onProgress: progress.receive,
+    request,
+    resetProgress: progress.reset,
+  });
+
+  useEffect(() => {
+    onReadyChange(status !== "idle");
+  }, [onReadyChange, status]);
+
+  useEffect(() => {
+    onLoaderChange?.(null);
+  }, [onLoaderChange]);
+
+  const inProgress = status === "idle" || status === "loading" || !report;
+
+  return (
+    <section aria-label="Title report content" style={titleReportStyles.panel}>
+      {inProgress ? (
+        <ProgressView autoScroll={false} highlightLast={true}
+          fillCompletion={false}
+          intro="I’ll keep you updated as I generate the title report."
+          jobs={progress.jobs}
+          process="GENERATING TITLE REPORT"
+        />
+      ) : (
+        <div data-panel-scroll="true" style={titleReportStyles.report}>
+          {report.chains.length ? (
+          <div style={titleReportStyles.chainList}>
+            {report.chains.map((chain, index) => (
+              <ErrorBoundary title={chain.title} resetKey={chain} key={`${chain.title}-${index}`}><ChainPanel
+                chain={chain}
+                first={index === 0}
+                multiple={report.chains.length > 1}
+                onSession={onSession}
+              /></ErrorBoundary>
+            ))}
+          </div>
+          ) : (
+            <div style={titleReportStyles.empty}>No data available.</div>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

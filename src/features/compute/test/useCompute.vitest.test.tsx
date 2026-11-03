@@ -53,7 +53,7 @@ describe("useCompute", () => {
     expect(useComputeStore.getState().clientEtag).toBe("new-version");
     expect(computeNeedsRefresh(useComputeStore.getState())).toBe(true);
   });
-  it.each([false, true])("does not submit after a failed or canceled eTag request; canceled=%s", async canceled => {
+  it.each([false, true])("does not submit after a failed resource reply or owner reset before the ETag reply; ownerReset=%s", async ownerReset => {
     let callback!: ResourceRequest["callback"];
     const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), submit: vi.fn(), status: vi.fn(), data: vi.fn() };
     const onComplete = vi.fn();
@@ -67,13 +67,13 @@ describe("useCompute", () => {
     await waitFor(() => expect(props.onResource).toHaveBeenCalledOnce());
     expect(workerClient.submit).not.toHaveBeenCalled();
     expect(workerClient.status).not.toHaveBeenCalled();
-    if (canceled) view.unmount();
-    await act(async () => callback(canceled ? { ok: true, data: "metadata-etag" } : { ok: false, error: "Resource unavailable" }));
+    if (ownerReset) { useComputeStore.getState().reset(); view.unmount(); }
+    await act(async () => callback(ownerReset ? { ok: true, data: "metadata-etag" } : { ok: false, error: "Resource unavailable" }));
     expect(workerClient.submit).not.toHaveBeenCalled();
     expect(workerClient.status).not.toHaveBeenCalled();
     expect(workerClient.data).not.toHaveBeenCalled();
     expect(onComplete).not.toHaveBeenCalled();
-    if (canceled) expect(onError).not.toHaveBeenCalled();
+    if (ownerReset) expect(onError).not.toHaveBeenCalled();
     else expect(onError).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ operation: "submit", error: expect.objectContaining({ error: "Resource unavailable" }) }));
   });
 
@@ -166,7 +166,7 @@ describe("useCompute", () => {
 });
 
 
-it.each([[false, false], [false, true], [true, false], [true, true]])("publishes only after data is ready; refresh=%s canceled=%s", async (refresh, canceled) => {
+it.each([[false, false], [false, true], [true, false], [true, true]])("publishes only after data is ready; refresh=%s ownerReset=%s", async (refresh, ownerReset) => {
   let finish!: (value: typeof data) => void;
   const data = { fee_factors: [], fees: [], funds: [] };
   const workerClient = { model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }),
@@ -177,9 +177,9 @@ it.each([[false, false], [false, true], [true, false], [true, true]])("publishes
   const props = { onResource: (request: ResourceRequest) => request.callback({ ok: true, data: "metadata-etag" }), segments, request: { authToken: "t", capability: "compute" as const, refresh, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-compute", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
   const view = renderHook(() => useCompute(props));
   await waitFor(() => expect(workerClient.data).toHaveBeenCalledOnce());
-  if (canceled) view.unmount();
+  if (ownerReset) { useComputeStore.getState().reset(); view.unmount(); }
   await act(async () => finish(data));
-  if (canceled) {
+  if (ownerReset) {
     expect(props.onComplete).not.toHaveBeenCalled();
   } else {
     expect(props.onComplete).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ result: data, session: "event-session" }));

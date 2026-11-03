@@ -3,7 +3,7 @@ import { DownloadButton } from "../../../shared/component/DownloadButton";
 import { capabilityStyles } from "../../../shared/style/capabilityStyles";
 import type { RecordPanelProps } from "../../../shared/type/capability.types";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
-import { ProgressView } from "../../progressview/component/ProgressView";
+import { ProgressView } from "aurora-core";
 import { useProgress } from "../../progressview/hook/useProgress";
 import { useRecord } from "../hook/useRecord";
 import { useRecordStore } from "../store/recordStore";
@@ -18,7 +18,7 @@ export function RecordPanel(props: RecordPanelProps): JSX.Element {
   const cover = typeof record?.pdf_confirmation === "string" ? record.pdf_confirmation : null;
 
   return (
-    <ProgressView
+    <ProgressView autoScroll={true} highlightLast={true}
       completion={store.status === "ready" && (document || cover) ? (
         <section aria-label="Recording actions" style={capabilityStyles.recordWrap}>
           <div aria-label="Recording actions" role="group" style={capabilityStyles.recordActions}>

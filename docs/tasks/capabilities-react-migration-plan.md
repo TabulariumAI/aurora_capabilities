@@ -1,5 +1,11 @@
 # Capabilities React Migration Plan
 
+## Title-report ownership update
+
+The approved title-report migration extends this package with `features/titlereport`, its tests, and its documentation. Copy and verify before deleting `aurora_analysis`; update host consumers, public exports, package/build/Docker references, and the workspace entry. Preserve title-report request, response, host framing, and error-handling contracts.
+
+Use the existing shared `useProgress` with explicit `reset()` for title-report retries/regeneration, the shared `WorkerConfig`, and the shared `pollSteps`. The approved polling change includes elapsed HTTP-request time in the existing deadline and retains the shared attempt limit. The original five-feature migration below remains historical context; this approved ownership and polling update takes precedence for title reports.
+
 ## Goal
 
 Create `aurora_capabilities` as the pure React package for the existing
@@ -604,38 +610,40 @@ Record, redact, and manifest also contain:
 
 State rules:
 
-1. `open` first compares request IDs. For the same request ID, dialog stores
-   set only `visible: true` and metadata stores make no state change. For a new
-   request ID, `open` sets the request, clears prior result/failure/notice,
-   sets `status: "loading"`, clears `runningRequestId`, sets dialog
-   `visible: true` where applicable, and sets the metadata feature's configured
-   default open segment. `useComputeStore.open(request, segments)` uses
-   `segments.FEE`; `useCompositionStore.open(request, segments)` uses
-   `segments.CHAIN`. Dialog stores use `open(request)`.
-2. `claimRequest(requestId)` returns false unless the ID matches the current
-   request, status is `loading`, and no request ID is running. Otherwise it
-   records the matching ID and returns true. Every feature hook must claim
-   before starting its worker sequence.
-3. `setLoading`, `setResult`, and `setFailure` mutate state only when
-   `requestId === state.request?.requestId`. Results from a cleared or replaced
-   request are ignored.
-4. `setResult` sets `status: "ready"` and clears `runningRequestId`.
-   `setFailure` sets `status: "error"` and clears `runningRequestId`.
-5. Dialog `close()` changes only `visible`; it does not clear or cancel an
+1. `open` compares request IDs. The same ID sets only `visible: true`.
+   A new ID sets the request, clears the prior failure and delivery notice,
+   and sets `status: "loading"` and `visible: true`. Compute and Composition
+   receive their configured default segment as the second argument.
+2. `beginRun(request)` claims the ID in the package-owned run registry before
+   execution. An existing ID is rejected regardless of its outcome. The run token
+   guards asynchronous results against owner reset. Presentation-store state
+   does not own the background execution claim.
+3. `setReady` and `setError` mutate presentation state only when
+   `requestId === state.request?.requestId`. Completed data is retained by
+   session in the Compute queue or capability data store, independently of
+   the currently displayed request.
+4. `setReady` sets `status: "ready"`; `setError` sets `status: "error"`.
+   Both clear `runningRequestId` and preserve `visible`.
+5. `close()` changes only `visible`; it does not clear or cancel an
    in-flight request.
-6. Dialog `reopen()` changes `visible` to true only when a request exists.
-7. `clearSession(session)` resets only when the current request belongs to that
-   session.
-8. `reset()` returns the complete store to its initial state.
-9. The package starts one hook run per request ID. Rerenders, close/reopen, and
+6. `reopen()` sets `visible: true` without starting execution.
+7. A feature's `clearSession(session)` clears its presentation only when the
+   current request belongs to that session. Clearing session data retains running
+   claims so accepted work continues through navigation.
+8. A feature's `reset()` invalidates its run claims and resets its presentation.
+9. The package claims one background run per request ID. Rerenders, close/reopen, and
    repeated `open` with the same request ID must not duplicate network calls or
    terminal callbacks.
-10. Closing or unmounting a dialog body does not cancel the claimed async
-    sequence. Its captured terminal callbacks continue, and a reopened body
-    cannot claim the same running request.
-11. On success, the hook calls `setResult(requestId, result)` before
+10. The host starts accepted work through `capability-requested`; the package owns
+    execution, retained progress, and results independently of mounted panels.
+    Closing or unmounting a body removes its progress subscription. Its captured
+    terminal callbacks continue through `capability-settled` and the configured
+    notification event, without reopening the surface. Sign-out resets the owner
+    and invalidates outstanding results. A request ID cannot be claimed again,
+    including after failure. Explicit Retry enters `runCapability` with a new ID.
+11. On success, the runner commits session data and calls `setReady` before
     `onComplete(terminal)`. On failure, it calls
-    `setFailure(requestId, failure)` before `onError(failure)`. Invoke one
+    `setError(failure)` before `onError(failure)`. Invoke one
     terminal callback exactly once even when the matching store request was
     cleared while the async sequence continued.
 
@@ -885,7 +893,7 @@ DOM from the package.
 
 ### Shared loading behavior
 
-Keep the existing package-owned `features/progressview` timeline. Core does not export a progress bar. Preserve its existing phase, message, and completion behavior and regression tests.
+Use the shared `aurora-core` ProgressView renderer, presentation types, and styles. Capabilities retains its package-owned progress hook, event producers, completion content, and request lifecycle. Renderer regression tests live in Core; producer and panel integration tests remain in Capabilities.
 
 ### Compute data
 
@@ -1417,3 +1425,6 @@ visual, live-browser, cleanup, or boundary gate is unverified.
 `generateCompute` starts the initial calculation from the configured indexing-completed background action without opening a panel. Open and Restore show content-shaped Factors, Fees, Funds, and total placeholders while Index supplies the session metadata eTag through the host exchange. The placeholders reuse Compute header, row, action, total, and responsive layout styles with Core loading semantics and skeleton styling. Unknown amounts and counts are neutral shapes hidden from assistive technology; no loading controls are interactive. Missing metadata does not submit a calculation; metadata failures reach the existing error/retry surface. Matching running gateway calculations are reused, and failures are returned without restarting them. Normal opening retrieves the current result through the existing queue projection so local drafts remain present. Header Refresh is enabled, remains disabled for pending drafts, and uses the existing recalculate route without an eTag.
 
 Compute follows Metadata's named container-query pattern at widths up to 32rem. Fiscal rows keep their status, label, and amount together, with actions below. The total uses the same three-column layout without reserving space for actions.
+
+
+Execution ownership: accepted workflows now run in package worker functions through the retained runs in `useCapabilityDataStore`. React hooks subscribe to progress and never cancel execution on unmount. The configured host `capability-requested` action starts the same workflows before a panel mounts. Completed runs remain available for reopening; session cleanup removes completed run records while preserving active work, and owner reset invalidates retained runs. Request/session identities guard late results and terminal callbacks.

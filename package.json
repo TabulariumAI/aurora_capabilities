@@ -2,7 +2,7 @@
   "name": "aurora-capabilities",
   "private": true,
   "version": "0.0.0",
-  "description": "React components for document computation, composition, recording, redaction, and manifest workflows in the Tabularium AI platform.",
+  "description": "React components for document computation, composition, recording, redaction, manifest, and title-report workflows in the Tabularium AI platform.",
   "type": "module",
   "license": "Apache-2.0",
   "author": "Tabularium AI",
@@ -19,6 +19,7 @@
     "document-composition",
     "document-redaction",
     "manifest",
+    "title-report",
     "react",
     "tabularium-ai"
   ],

@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRedact } from "../hook/useRedact";
+import { useRedactStore } from "../store/redactStore";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 
 afterEach(() => useCapabilityDataStore.getState().reset());
@@ -71,7 +72,7 @@ describe("useRedact", () => {
 
 afterEach(() => vi.restoreAllMocks());
 
-it.each([false, true])("publishes only after data is ready; canceled=%s", async (canceled) => {
+it.each([false, true])("publishes only after data is ready; ownerReset=%s", async (ownerReset) => {
   let finish!: (value: { pdf: string; chain: never[] }) => void;
   const data = { pdf: "https://test/document.pdf", chain: [] as never[] };
   const workerClient = {
@@ -82,9 +83,9 @@ it.each([false, true])("publishes only after data is ready; canceled=%s", async 
   const props = { request: { authToken: "t", capability: "redact" as const, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-redact", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
   const view = renderHook(() => useRedact(props));
   await waitFor(() => expect(workerClient.data).toHaveBeenCalledOnce());
-  if (canceled) view.unmount();
+  if (ownerReset) { useRedactStore.getState().reset(); view.unmount(); }
   await act(async () => finish(data));
-  if (canceled) {
+  if (ownerReset) {
     expect(props.onComplete).not.toHaveBeenCalled();
   } else {
     view.rerender();

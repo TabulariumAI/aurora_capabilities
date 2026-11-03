@@ -22,22 +22,17 @@ for (const capability of ready) {
   });
 }
 
-test("manifest uses tinted progress circles and connectors", async ({ page }) => {
+test("manifest uses the shared success indicators and theme colors", async ({ page }) => {
   await page.goto("/?capability=manifest&state=ready");
   const progress = page.getByTestId("progress-view");
   const rows = progress.getByRole("listitem");
-
-  await expect(rows.first().getByLabel("Completed")).toHaveCSS("background-color", "rgb(236, 247, 241)");
-  await expect(rows.first().getByLabel("Completed")).toHaveCSS("border-top-color", "rgb(30, 142, 94)");
-  await expect(rows.first().getByLabel("Completed")).toHaveCSS("color", "rgb(30, 142, 94)");
-  await expect(rows.first().locator(":scope > div")).toHaveCSS("background-color", "rgba(30, 142, 94, 0.05)");
-  await expect(rows.last().getByLabel("Completed")).toHaveCSS("background-color", "rgb(240, 246, 250)");
-  await expect(rows.last().getByLabel("Completed")).toHaveCSS("border-top-color", "rgb(27, 127, 166)");
-  await expect(rows.last().getByLabel("Completed")).toHaveCSS("color", "rgb(27, 127, 166)");
-  await expect(rows.last().locator(":scope > div")).toHaveCSS("background-color", "rgba(27, 127, 166, 0.05)");
-  await expect(progress.getByTestId("progress-intro").locator(":scope > p")).toHaveCSS("background-color", "rgba(27, 127, 166, 0.05)");
-  await expect(progress.getByTestId("progress-intro-connector")).toHaveCSS("border-left-color", "rgb(183, 200, 207)");
-  await expect(progress.getByTestId("progress-connector").first()).toHaveCSS("border-left-color", "rgb(183, 200, 207)");
+  await expect(rows.first().getByLabel("Completed")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(rows.first().locator(":scope > div")).toHaveCSS("background-color", "rgb(236, 253, 243)");
+  await expect(rows.last().getByLabel("Completed")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+  await expect(rows.last().locator(":scope > div")).toHaveCSS("background-color", "rgb(224, 243, 255)");
+  await expect(progress.getByTestId("progress-intro").locator(":scope > p")).toHaveCSS("background-color", "rgb(224, 243, 255)");
+  await expect(progress.getByTestId("progress-intro-connector")).toHaveCSS("border-left-color", "rgb(226, 232, 240)");
+  await expect(progress.getByTestId("progress-connector").first()).toHaveCSS("border-left-color", "rgb(226, 232, 240)");
 });
 
 test("composition renders batch-link progress below the accordion", async ({ page }, testInfo) => {
@@ -58,7 +53,7 @@ test("composition renders batch-link progress below the accordion", async ({ pag
   await expect(root.getByText("Alice", { exact: true }).first()).toBeVisible();
   await expect(root.getByRole("combobox", { name: "Batch name" })).toHaveCount(0);
   const actions = root.getByRole("group", { name: "Composition actions" });
-  await expect(actions.getByRole("button", { name: "Link to batch" })).toBeVisible();
+  await expect(actions.getByRole("button", { name: "Stage" })).toBeVisible();
   await expect.poll(async () => {
     const row = root.locator("article").last();
     const [rowBox, actionsBox] = await Promise.all([row.boundingBox(), actions.boundingBox()]);
@@ -67,13 +62,13 @@ test("composition renders batch-link progress below the accordion", async ({ pag
   }).toBeGreaterThanOrEqual(12);
   const [actionsBox, linkBox] = await Promise.all([
     actions.boundingBox(),
-    actions.getByRole("button", { name: "Link to batch" }).boundingBox(),
+    actions.getByRole("button", { name: "Stage" }).boundingBox(),
   ]);
   if (!actionsBox || !linkBox) throw new Error("Composition batch controls are incomplete.");
   expect(Math.abs((linkBox.x + linkBox.width / 2) - (actionsBox.x + actionsBox.width / 2))).toBeLessThanOrEqual(1);
-  await actions.getByRole("button", { name: "Link to batch" }).click();
+  await actions.getByRole("button", { name: "Stage" }).click();
   await expect(progress.getByTestId("progress-caption")).toHaveText("LINKING DOCUMENT TO BATCH");
-  await expect(progress.getByText("Session linked to batch.", { exact: true })).toBeVisible();
+  await expect(progress.getByText("Session linked locally. Pending sync.", { exact: true })).toBeVisible();
   const [accordionBox, progressBox] = await Promise.all([
     root.getByRole("region", { name: "Composition accordion" }).boundingBox(),
     progress.boundingBox(),
@@ -85,10 +80,10 @@ test("composition renders batch-link progress below the accordion", async ({ pag
   const viewBox = await view.boundingBox();
   if (!viewBox) throw new Error("Composition linked-batch success action is incomplete.");
   const completedRow = progress.getByRole("listitem").last();
-  await expect(completedRow).toContainText("Session linked to batch.");
+  await expect(completedRow).toContainText("Session linked locally. Pending sync.");
   await expect(completedRow.getByRole("button", { name: "View batch" })).toBeVisible();
   await expect(actions).toHaveCount(0);
-  await expect(root.getByRole("button", { name: "Link to batch" })).toHaveCount(0);
+  await expect(root.getByRole("button", { name: "Stage" })).toHaveCount(0);
   await expect(root.getByRole("combobox", { name: "Batch name" })).toHaveCount(0);
   await expect(root.getByText("Document linked to batch.", { exact: true })).toHaveCount(0);
   const completedRowBox = await completedRow.boundingBox();
@@ -190,8 +185,12 @@ for (const width of [390, 840]) {
       }
       const valueBox = await row.locator(".compute-value").boundingBox();
       const actionsBox = await row.getByRole("group").boundingBox();
-      expect(valueBox!.x + valueBox!.width).toBeLessThanOrEqual(actionsBox!.x);
-      expect(Math.abs(valueBox!.y + valueBox!.height / 2 - actionsBox!.y - actionsBox!.height / 2)).toBeLessThanOrEqual(1);
+      if (width === 390) {
+        expect(valueBox!.y + valueBox!.height).toBeLessThanOrEqual(actionsBox!.y);
+      } else {
+        expect(valueBox!.x + valueBox!.width).toBeLessThanOrEqual(actionsBox!.x);
+        expect(Math.abs(valueBox!.y + valueBox!.height / 2 - actionsBox!.y - actionsBox!.height / 2)).toBeLessThanOrEqual(1);
+      }
       await root.screenshot({ path: testInfo.outputPath(`compute-${section.toLowerCase()}-${width}.png`) });
     }
     await root.getByRole("button", { name: "Factors", exact: true }).click();
@@ -201,7 +200,11 @@ for (const width of [390, 840]) {
     const feeRight = await root.locator("article").getByText("$125.00", { exact: true }).evaluate(node => node.getBoundingClientRect().right);
     await root.getByRole("button", { name: "Funds", exact: true }).click();
     const fundRight = await root.locator("article").getByText("$75.00", { exact: true }).evaluate(node => node.getBoundingClientRect().right);
-    expect(factorRight).toBeGreaterThan(feeRight);
+    if (width === 390) {
+      expect(Math.abs(factorRight - feeRight)).toBeLessThanOrEqual(1);
+    } else {
+      expect(factorRight).toBeGreaterThan(feeRight);
+    }
     expect(Math.abs(feeRight - fundRight)).toBeLessThanOrEqual(1);
     await root.getByRole("button", { name: "Factors", exact: true }).click();
     const factorRow = root.locator("article").filter({ hasText: "Page count" });
@@ -222,7 +225,7 @@ test("manifest renders connected active progress", async ({ page }, testInfo) =>
   await expect(progress.getByText("Checking manifest status...")).toBeVisible();
   await expect(progress.getByText("Generating document manifest...")).toBeVisible();
   await expect(progress.getByLabel("In progress")).toBeVisible();
-  await expect(progress.getByText("Generating document manifest...").locator("..")).toHaveCSS("background-color", "rgba(27, 127, 166, 0.05)");
+  await expect(progress.getByText("Generating document manifest...").locator("..")).toHaveCSS("background-color", "rgb(224, 243, 255)");
   await progress.screenshot({ path: testInfo.outputPath("manifest-progress.png") });
 });
 
@@ -239,9 +242,9 @@ test("progress scrolls its newest row into view", async ({ page }) => {
     const rootRect = root.getBoundingClientRect();
     const rowRect = row.getBoundingClientRect();
     return {
-      bottom: rowRect.bottom - rootRect.top,
+      bottom: Math.round(rowRect.bottom - rootRect.top),
       height: root.clientHeight,
-      top: rowRect.top - rootRect.top,
+      top: Math.round(rowRect.top - rootRect.top),
     };
   });
   expect(geometry).toMatchObject({ bottom: expect.any(Number), height: expect.any(Number), top: expect.any(Number) });

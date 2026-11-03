@@ -1,4 +1,4 @@
-import { formStyles, useDragOrder, OrderButtons, type OrderButtonsProps, ConfButton, iconButtonStyle, SuccessIcon, formatLabel, isAmbiguous, type MetadataFeeFactor, type MetadataFeeItem } from "aurora-core";
+import { ErrorBoundary, ErrorBadge, formStyles, useDragOrder, OrderButtons, type OrderButtonsProps, ConfButton, iconButtonStyle, SuccessIcon, formatLabel, isAmbiguous, type MetadataFeeFactor, type MetadataFeeItem } from "aurora-core";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { useId, type HTMLAttributes, type ReactNode, type JSX } from "react";
 import { computeQueueStore, type ComputeTask } from "../store/computeQueueStore";
@@ -75,7 +75,15 @@ function FiscalRow({ item, currency, session, collection, task, pending, order, 
   );
 }
 
-function FiscalSegment({
+function FiscalSegment(props: FiscalSegmentProps) {
+  const pending = computeQueueStore(state => state.tasks.some(task => task.session === props.session && task.status === "processing"));
+  return <ErrorBoundary key={props.session} title={props.title} resetKey={props.items}
+    fallback={error => <FiscalFrame {...props} pending={pending} error={error.message} />}>
+    <FiscalContent {...props} pending={pending} />
+  </ErrorBoundary>;
+}
+
+function FiscalContent({
   currency,
   session,
   collection,
@@ -88,15 +96,32 @@ function FiscalSegment({
   segment,
   shortcut,
   title,
-}: FiscalSegmentProps): JSX.Element {
+  pending,
+}: FiscalSegmentProps & { pending: boolean }): JSX.Element {
   const tasks = computeQueueStore(state => state.tasks);
-  const pending = tasks.some(task => task.session === session && task.status === "processing");
   const visible = items.filter((item) => Number(item.amount) !== 0 || Boolean(item.explanation));
   const rows = visible.map(item => ({ item, task: [...tasks].reverse().find(task => task.session === session && task.change.action !== "add" && task.change.segment === collection && task.change.item.name === item.name && task.change.item.formula === ("formula" in item ? item.formula : undefined)) }));
   const move = (from: number, to: number) => { void computeQueueStore.getState().enqueue(session, { action: "move", segment: "funds", item: rows[from].item as MetadataFeeItem, target: rows[to].item as MetadataFeeItem }).catch(() => undefined); };
   const drag = useDragOrder({ keys: rows.map(({ item }) => `${item.code}-${item.name}`), disabled: () => collection !== "funds" || pending, onMove: move });
-  const shortcutIndex = shortcut ? title.toLowerCase().indexOf(shortcut.toLowerCase()) : -1;
 
+  return (
+    <FiscalFrame currency={currency} collection={collection} onAddFee={onAddFee} onAddFund={onAddFund} onOpen={onOpen} openSegment={openSegment} segment={segment} shortcut={shortcut} title={title} pending={pending} count={visible.length} subtotal={currency ? currencyFormat.format(totalCents(items as readonly MetadataFeeItem[]) / 100) : undefined}>
+      <Collapsible.Content>
+        <div style={computeStyles.items}>
+          {rows.length ? rows.map(({ item, task }, index) => <FiscalRow pending={pending} collection={collection} session={session} task={task} currency={currency} item={item} key={`${segment}-${item.code}-${item.name}`} drag={collection === "funds" ? { handle: drag.handle(index, formatLabel(item.name)), props: drag.rowProps(index) } : undefined} order={collection === "funds" ? {
+            first: index === 0,
+            last: index === rows.length - 1,
+            disabled: pending,
+            onMove: direction => move(index, index + direction),
+          } : undefined} />) : <div style={computeStyles.empty}>{empty}</div>}
+        </div>
+      </Collapsible.Content>
+    </FiscalFrame>
+  );
+}
+
+function FiscalFrame({ currency, collection, onAddFee, onAddFund, onOpen, openSegment, segment, shortcut, title, pending, count, subtotal, error, children }: Omit<FiscalSegmentProps, "items" | "empty" | "session"> & { pending: boolean; count?: number; subtotal?: string; error?: string; children?: ReactNode }) {
+  const shortcutIndex = shortcut ? title.toLowerCase().indexOf(shortcut.toLowerCase()) : -1;
   return (
     <Collapsible.Root style={computeStyles.section}
       onOpenChange={(open) => {
@@ -111,22 +136,14 @@ function FiscalSegment({
             <span>{shortcutIndex >= 0 ? <>{title.slice(0, shortcutIndex)}<u>{title.slice(shortcutIndex, shortcutIndex + 1)}</u>{title.slice(shortcutIndex + 1)}</> : title}</span>
           </button>
         </Collapsible.Trigger>
-        {currency ? <div aria-label={`${title} subtotal`} role="group" style={computeStyles.subtotal}>{currencyFormat.format(totalCents(items as readonly MetadataFeeItem[]) / 100)}</div> : null}
+        {currency && !error ? <div aria-label={`${title} subtotal`} role="group" style={computeStyles.subtotal}>{subtotal}</div> : null}
         {currency ? <div aria-label={`${title} actions`} role="group" style={computeStyles.headerActions}>
           <button disabled={pending} aria-label={`Add ${title}`} className="compute-icon" onClick={event => (collection === "fees" ? onAddFee : onAddFund)(event.currentTarget)} style={{ ...iconButtonStyle, ...computeStyles.iconAction }} title={collection === "fees" ? "Add Fee" : "Add Fund"} type="button"><ComputeIcon name="add" /></button>
         </div> : null}
-        <span style={computeStyles.count}>{visible.length}</span>
+        <span style={computeStyles.count}>{error ? <ErrorBadge label={title} error={error} /> : count}</span>
       </div>
-      <Collapsible.Content>
-        <div style={computeStyles.items}>
-          {rows.length ? rows.map(({ item, task }, index) => <FiscalRow pending={pending} collection={collection} session={session} task={task} currency={currency} item={item} key={`${segment}-${item.code}-${item.name}`} drag={collection === "funds" ? { handle: drag.handle(index, formatLabel(item.name)), props: drag.rowProps(index) } : undefined} order={collection === "funds" ? {
-            first: index === 0,
-            last: index === rows.length - 1,
-            disabled: pending,
-            onMove: direction => move(index, index + direction),
-          } : undefined} />) : <div style={computeStyles.empty}>{empty}</div>}
-        </div>
-      </Collapsible.Content>
+
+      {children}
     </Collapsible.Root>
   );
 }
@@ -148,22 +165,31 @@ export function ComputeDetails({
   setOpenSegment(segment: string): void;
   shortcuts: ReadonlyMap<string, string>;
 }): JSX.Element {
-  const saveStatusId = useId();
-  const dirty = computeQueueStore(state => state.tasks.some(task => task.session === session));
-  const pending = computeQueueStore(state => state.tasks.some(task => task.session === session && task.status === "processing"));
-  const error = computeQueueStore(state => state.error ?? state.tasks.find(task => task.session === session && task.error)?.error);
-  const fees = data.fees ?? [];
-  const funds = data.funds ?? [];
-  const feeTotal = totalCents(fees);
-  const fundTotal = totalCents(funds);
-  const balanced = feeTotal === fundTotal;
   return (
     <section aria-label="Compute" style={computeStyles.root}>
       <style>{computeCss}</style>
       <div aria-label="Compute accordion" data-panel-scroll="true" role="region" style={computeStyles.accordion}>
         <FiscalSegment session={session} collection={null} onAddFee={onAddFee} onAddFund={onAddFund} currency={false} empty="No fee factors found." items={data.fee_factors ?? []} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FEEFACTOR} shortcut={shortcuts.get(segments.FEEFACTOR) ?? null} title="Factors" />
-        <FiscalSegment session={session} collection="fees" onAddFee={onAddFee} onAddFund={onAddFund} currency empty="No fees found." items={fees} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FEE} shortcut={shortcuts.get(segments.FEE) ?? null} title="Fees" />
-        <FiscalSegment session={session} collection="funds" onAddFee={onAddFee} onAddFund={onAddFund} currency empty="No fund distributions found." items={funds} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FUND} shortcut={shortcuts.get(segments.FUND) ?? null} title="Funds" />
+        <FiscalSegment session={session} collection="fees" onAddFee={onAddFee} onAddFund={onAddFund} currency empty="No fees found." items={data.fees ?? []} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FEE} shortcut={shortcuts.get(segments.FEE) ?? null} title="Fees" />
+        <FiscalSegment session={session} collection="funds" onAddFee={onAddFee} onAddFund={onAddFund} currency empty="No fund distributions found." items={data.funds ?? []} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FUND} shortcut={shortcuts.get(segments.FUND) ?? null} title="Funds" />
+        <ErrorBoundary title="Compute totals" resetKey={data} fallback={failure => <ComputeFooter data={data} session={session} onEndorse={onEndorse} failure={failure.message} />}>
+          <ComputeFooter data={data} session={session} onEndorse={onEndorse} />
+        </ErrorBoundary>
+      </div>
+    </section>
+  );
+}
+
+function ComputeFooter({ data, session, onEndorse, failure }: Pick<ComputePanelProps, "onEndorse"> & { data: ComputeResult; session: string; failure?: string }) {
+  const saveStatusId = useId();
+  const dirty = computeQueueStore(state => state.tasks.some(task => task.session === session));
+  const pending = computeQueueStore(state => state.tasks.some(task => task.session === session && task.status === "processing"));
+  const error = computeQueueStore(state => state.error ?? state.tasks.find(task => task.session === session && task.error)?.error);
+  const feeTotal = failure ? undefined : totalCents(data.fees ?? []);
+  const fundTotal = failure ? undefined : totalCents(data.funds ?? []);
+  const balanced = !failure && feeTotal === fundTotal;
+
+  return <>
         <div aria-label="Row status legend" role="note" style={computeStyles.legend}>
           <span><span aria-hidden="true" style={{ color: "#15803d" }}>●</span> No ambiguity reported</span>
           <span><span aria-hidden="true" style={{ color: "#b45309" }}>●</span> Ambiguous / saving</span>
@@ -171,14 +197,14 @@ export function ComputeDetails({
         </div>
         <div aria-label="Compute total" className="compute-total" role="group" style={{ ...computeStyles.row, ...computeStyles.total }}>
           <span style={{ ...computeStyles.label, ...computeStyles.totalText, gridColumn: "1 / 3" }}>Total fees</span>
-          <span style={{ ...computeStyles.value, ...computeStyles.totalText, gridColumn: "3" }}>{currencyFormat.format(feeTotal / 100)}</span>
+          <span style={{ ...computeStyles.value, ...computeStyles.totalText, gridColumn: "3" }}>{failure ? <ErrorBadge label="Total fees" error={failure} /> : currencyFormat.format(feeTotal! / 100)}</span>
         </div>
-        {!balanced ? <div role="alert" style={{ ...capabilityStyles.notice("error"), alignSelf: "center" }}>
-          Fees ({currencyFormat.format(feeTotal / 100)}) and Funds ({currencyFormat.format(fundTotal / 100)}) do not match.
+        {!failure && !balanced ? <div role="alert" style={{ ...capabilityStyles.notice("error"), alignSelf: "center" }}>
+          Fees ({currencyFormat.format(feeTotal! / 100)}) and Funds ({currencyFormat.format(fundTotal! / 100)}) do not match.
         </div> : null}
         {error ? <div aria-label="Save failed" role="alert" style={capabilityStyles.notice("error")}>{error}</div> : null}
         <p aria-label="Save status" role="status" style={computeStyles.saveStatus}>
-          <span id={saveStatusId}>{pending ? "Saving changes…" : dirty ? "Unsaved changes. Save changes before endorsing." : !balanced ? "Fees and Funds must match before endorsing." : "Ready to endorse."}</span>
+          <span id={saveStatusId}>{failure ? <ErrorBadge label="Save status" error={failure} /> : pending ? "Saving changes…" : dirty ? "Unsaved changes. Save changes before endorsing." : !balanced ? "Fees and Funds must match before endorsing." : "Ready to endorse."}</span>
         </p>
         <div aria-label="Compute actions" role="group" style={{ ...capabilityStyles.computeActions, gap: formStyles.actions.gap, flexWrap: formStyles.actions.flexWrap }}>
           {dirty ? <>
@@ -186,7 +212,5 @@ export function ComputeDetails({
             <ConfButton disabled={pending} label="Discard changes" requireConfirmation={false} variant="secondary" onConfirm={() => computeQueueStore.getState().discard(session)} />
           </> : <ConfButton aria-describedby={saveStatusId} disabled={!balanced} label="Endorse" onConfirm={onEndorse} />}
         </div>
-      </div>
-    </section>
-  );
+  </>;
 }

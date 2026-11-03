@@ -19,7 +19,8 @@ npm run test:visual
 
 ## Guidelines
 
-- Preserve host ownership of authentication, API gateway configuration, document/session context, and framing.
-- Keep compute, composition, record, redact, and manifest behavior in their existing feature areas.
+- Preserve host ownership of authentication, API gateway configuration, document/batch/session context, and framing.
+- Keep compute, composition, record, redact, manifest, and title-report behavior in their existing feature areas.
+- Keep title-report session linking, generation, state, and report presentation in the title-report feature; use the shared progress hook and polling implementation.
 - Add or update tests for behavior changes.
 - Do not commit generated build output, coverage, test results, package tarballs, credentials, live storage URLs, or customer documents.

@@ -1,3 +1,4 @@
+import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 import { create } from "zustand";
 import type { CapabilityStatus, RecordFailure, RecordRequest } from "../../../shared/type/capability.types";
 
@@ -41,6 +42,7 @@ export const useRecordStore = create<RecordStoreState>()((set, get) => ({
     set({ visible: true });
   },
   reset() {
+    useCapabilityDataStore.getState().clearRuns("record");
     set({ delivering: null, failure: null, request: null, runningRequestId: null, status: "idle", visible: false });
   },
   setDelivering(delivering) {
@@ -48,11 +50,11 @@ export const useRecordStore = create<RecordStoreState>()((set, get) => ({
   },
   setError(failure) {
     if (get().request?.requestId !== failure.requestId) return;
-    set({ failure, runningRequestId: null, status: "error", visible: true });
+    set({ failure, runningRequestId: null, status: "error" });
   },
   setReady(requestId) {
     if (get().request?.requestId !== requestId) return;
-    set({ failure: null, runningRequestId: null, status: "ready", visible: true });
+    set({ failure: null, runningRequestId: null, status: "ready" });
   },
   setRunning(requestId) {
     if (get().runningRequestId === requestId) return false;

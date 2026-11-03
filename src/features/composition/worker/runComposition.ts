@@ -1,0 +1,88 @@
+import { pollSteps, workerError } from "../../../shared/worker/capabilityHttp";
+import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
+import { COMPOSITION_SEGMENTS, type CompositionFailure, type CompositionPanelProps } from "../../../shared/type/capability.types";
+import { useCompositionStore } from "../store/compositionStore";
+import { createCompositionWorkerClient } from "../worker/compositionWorkerClient";
+import { runCapabilityJob } from "../../../shared/worker/capabilityRunner";
+const isComplete = (status: unknown) => status === "completed";
+const isFailed = (status: unknown) => status === "error";
+export function runComposition({ onComplete, onError, request, workerClient }: Pick<CompositionPanelProps, "onComplete" | "onError" | "request" | "workerClient">) {
+  const client = workerClient ?? createCompositionWorkerClient({ apiBaseUrl: request.documentApiGatewayUrl });
+  runCapabilityJob(request, async ({ isActive, onProgress, finish }) => {
+    useCompositionStore.getState().open(request, COMPOSITION_SEGMENTS.CHAIN);
+    useCompositionStore.getState().setRunning(request.requestId);
+    let operation: CompositionFailure["operation"] = "submit";
+    let progressId = "start";
+    let message = "Starting document composition...";
+    onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
+    const fail = (operation: CompositionFailure["operation"], error: unknown) => {
+      const failure: CompositionFailure = {
+        capability: "composition",
+        error: workerError(error, "Composition request failed."),
+        operation,
+        requestId: request.requestId,
+        session: request.session,
+      };
+      finish("failed");
+      useCompositionStore.getState().setError(failure);
+      onProgress({ error: failure.error.error, jobId: `${request.requestId}-${progressId}`, message, phase: "failed" });
+      onError(failure);
+    };
+    try {
+      let response = await client.submit(request.authToken, request.session);
+      if (!isActive())
+        return;
+      if (isFailed(response.status))
+        throw { error: typeof response.data === "string" ? response.data : "Composition request failed." };
+      operation = "status";
+      progressId = "composition";
+      message = "Composing document metadata...";
+      onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 1, total: 28, unit: "steps" } });
+      response = await client.status(request.authToken, request.session);
+      if (!isActive())
+        return;
+      if (isFailed(response.status))
+        throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as {
+            data?: unknown;
+          })?.data}` };
+      let complete = isComplete(response.status);
+      if (!complete) {
+        for await (const step of pollSteps(request.intervalMs, 27)) {
+          if (!isActive())
+            return;
+          onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: step + 2, total: 28, unit: "steps" } });
+          operation = "status";
+          response = await client.status(request.authToken, request.session);
+          if (!isActive())
+            return;
+          if (isFailed(response.status))
+            throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as {
+                data?: unknown;
+              })?.data}` };
+          complete = isComplete(response.status);
+          if (complete)
+            break;
+        }
+      }
+      if (!complete)
+        throw { code: "COMPOSITION_TIMEOUT", error: "Composition timed out." };
+      operation = "data";
+      progressId = "details";
+      message = "Preparing composition details...";
+      onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
+      const result = await client.data(request.authToken, request.session);
+      if (!isActive())
+        return;
+      onProgress({ jobId: `${request.requestId}-complete`, message: "Document composition complete.", phase: "started" });
+      onProgress({ jobId: `${request.requestId}-complete`, message: "Document composition complete.", phase: "completed" });
+      useCapabilityDataStore.getState().setData("composition", request.session, result);
+      finish("completed");
+      useCompositionStore.getState().setReady(request.requestId);
+      onComplete({ capability: "composition", outcome: "completed", requestId: request.requestId, result, session: request.session });
+    }
+    catch (error) {
+      if (isActive())
+        fail(operation, error);
+    }
+  });
+}

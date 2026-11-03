@@ -1,6 +1,6 @@
 # Aurora Capabilities
 
-Aurora Capabilities provides React components for document computation, composition, recording, redaction, and manifest workflows in the Tabularium AI platform.
+Aurora Capabilities provides React components for document computation, composition, recording, redaction, manifest, and title-report workflows in the Tabularium AI platform.
 
 It is a host-integrated package. The host provides authentication, API gateway configuration, document/session context, and presentation framing. Aurora service implementations, credentials, customer documents, and live storage URLs are not included.
 
@@ -13,6 +13,7 @@ It is a host-integrated package. The host provides authentication, API gateway c
 - Record and download confirmation, PDF, and TIFF outputs
 - Redact document outputs
 - Generate and download manifests
+- Link document sessions, generate title reports, and present report chains; see [Title Report](docs/titlereport.md).
 
 ## Requirements
 
@@ -28,7 +29,7 @@ npm install
 
 ## Use
 
-The package exports `ComputePanel`, `CompositionPanel`, `RecordPanel`, `RedactPanel`, and `ManifestPanel`, together with their hooks, stores, worker clients, and types.
+The package exports `ComputePanel`, `CompositionPanel`, `RecordPanel`, `RedactPanel`, `ManifestPanel`, and `TitleReportPanel`, together with their hooks, stores, worker clients, and types.
 
 ```tsx
 import { ComputePanel, RedactPanel } from "aurora-capabilities";
@@ -36,7 +37,7 @@ import { ComputePanel, RedactPanel } from "aurora-capabilities";
 
 See the exported prop types in [`src/public-api.ts`](src/public-api.ts). The host must supply valid credentials and compatible gateway endpoints.
 
-The polling budget is 7.5 seconds per progress step, independently of the polling interval. The host polls every 500 ms. Manifest, recording, and redaction retain their 157.5-second waiting budgets; computation and composition retain 202.5 seconds.
+The polling budget is 7.5 seconds per progress step, independently of the polling interval. It includes elapsed status-request time; polling stops at the deadline or the shared attempt limit. The host polls every 500 ms. Title report, manifest, recording, and redaction retain their 157.5-second polling budgets; computation and composition retain 202.5 seconds.
 
 Compute's `onAddFee(anchor)` callback opens the host callout containing `AddFiscalPanel` with `segment="fees"`. The panel loads the model ETag and queues the literal Fee Value, then calls `onQueued` after IndexedDB storage to close. Checking the dedicated-fund checkbox copies Fee Name with ` Fund` appended into the editable Fund Name. The dedicated fund always uses Fee Value. Add requires Fee Name and Fee Value, plus Fund Name when the checkbox is checked. The shared aurora-core form styles and centered Add control match Add index.
 

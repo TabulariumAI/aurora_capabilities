@@ -1,3 +1,4 @@
+import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 import { create } from "zustand";
 import type { MetadataUpdate } from "aurora-core";
 import type { CapabilityStatus, ComputeFailure, ComputeRequest } from "../../../shared/type/capability.types";
@@ -47,18 +48,19 @@ export const useComputeStore = create<ComputeStoreState>()((set, get) => ({
     set({ visible: true });
   },
   reset() {
+    useCapabilityDataStore.getState().clearRuns("compute");
     set({ failure: null, openSegment: null, request: null, runningRequestId: null, status: "idle", visible: false, ...initialMetadata });
   },
   setError(failure) {
     if (get().request?.requestId !== failure.requestId) return;
-    set({ failure, runningRequestId: null, status: "error", visible: true });
+    set({ failure, runningRequestId: null, status: "error" });
   },
   setOpenSegment(segment) {
     set({ openSegment: segment });
   },
   setReady(requestId, metadataEtag) {
     if (get().request?.requestId !== requestId) return;
-    set({ failure: null, runningRequestId: null, status: "ready", visible: true, metadataEtag });
+    set({ failure: null, runningRequestId: null, status: "ready", metadataEtag });
   },
   setRunning(requestId) {
     if (get().runningRequestId === requestId) return false;

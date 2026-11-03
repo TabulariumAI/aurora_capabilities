@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import type { ProgressEvent, ProgressJob } from "../type/progress.types";
+import type { ProgressJob } from "aurora-core";
 
-function mergeJob(current: ProgressJob, event: ProgressEvent): ProgressJob {
+function mergeJob(current: ProgressJob, event: ProgressJob): ProgressJob {
   const restarting = event.phase === "started" && (current.phase === "completed" || current.phase === "failed");
   const next = { ...current, ...event };
   if (!restarting) return next;
@@ -14,7 +14,8 @@ function mergeJob(current: ProgressJob, event: ProgressEvent): ProgressJob {
 
 type ProgressState = {
   jobs: readonly ProgressJob[];
-  receive(event: ProgressEvent): void;
+  receive(event: ProgressJob): void;
+  reset(): void;
 };
 
 export function useProgress(requestId: string): ProgressState {
@@ -23,7 +24,7 @@ export function useProgress(requestId: string): ProgressState {
   const [state, setState] = useState({ jobs: [] as readonly ProgressJob[], requestId });
   const jobs = state.requestId === requestId ? state.jobs : [];
 
-  const receive = useCallback((event: ProgressEvent) => {
+  const receive = useCallback((event: ProgressJob) => {
     if (activeId.current !== requestId) return;
     setState((current) => {
       const jobs = current.requestId === requestId ? current.jobs : [];
@@ -45,5 +46,9 @@ export function useProgress(requestId: string): ProgressState {
     });
   }, [requestId]);
 
-  return useMemo(() => ({ jobs, receive }), [jobs, receive]);
+  const reset = useCallback(() => {
+    setState({ jobs: [], requestId });
+  }, [requestId]);
+
+  return useMemo(() => ({ jobs, receive, reset }), [jobs, receive, reset]);
 }

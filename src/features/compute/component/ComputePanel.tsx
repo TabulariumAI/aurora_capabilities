@@ -1,5 +1,5 @@
 import { useMemo, type JSX } from "react";
-import { ProgressView } from "../../progressview/component/ProgressView";
+import { ProgressView } from "aurora-core";
 import { useProgress } from "../../progressview/hook/useProgress";
 import { CAPABILITY_SHORTCUTS, type ComputePanelProps } from "../../../shared/type/capability.types";
 import { computeQueueStore } from "../store/computeQueueStore";
@@ -34,7 +34,7 @@ export function ComputePanel(props: ComputePanelProps): JSX.Element {
   if (!props.request.refresh && store.status !== "error") return <ComputePlaceholder />;
 
   return (
-    <ProgressView
+    <ProgressView autoScroll={true} highlightLast={true}
       fillCompletion={false}
       intro="I’ll keep you updated as I calculate document fees."
       jobs={progress.jobs}

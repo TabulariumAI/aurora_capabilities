@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useRecord } from "../hook/useRecord";
+import { useRecordStore } from "../store/recordStore";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 
 afterEach(() => useCapabilityDataStore.getState().reset());
@@ -75,7 +76,7 @@ describe("useRecord", () => {
 
 afterEach(() => vi.restoreAllMocks());
 
-it.each([false, true])("publishes only after data is ready; canceled=%s", async (canceled) => {
+it.each([false, true])("publishes only after data is ready; ownerReset=%s", async (ownerReset) => {
   let finish!: (value: { pdf: string; chain: never[] }) => void;
   const data = { pdf: "https://test/document.pdf", chain: [] as never[] };
   const workerClient = { calculate: vi.fn(async () => ({ status: "completed", data: null })), computation: vi.fn(async () => ({ status: "completed", data: null })),
@@ -86,9 +87,9 @@ it.each([false, true])("publishes only after data is ready; canceled=%s", async 
   const props = { request: { authToken: "t", capability: "record" as const, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-record", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
   const view = renderHook(() => useRecord(props));
   await waitFor(() => expect(workerClient.data).toHaveBeenCalledOnce());
-  if (canceled) view.unmount();
+  if (ownerReset) { useRecordStore.getState().reset(); view.unmount(); }
   await act(async () => finish(data));
-  if (canceled) {
+  if (ownerReset) {
     expect(props.onComplete).not.toHaveBeenCalled();
   } else {
     view.rerender();

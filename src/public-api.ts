@@ -28,3 +28,11 @@ export type * from "./features/manifest/type/manifest.types";
 
 export { computeQueueStore } from "./features/compute/store/computeQueueStore";
 export type { ComputeChange, ComputeTask, ComputeRuntime, ComputeTransition } from "./features/compute/store/computeQueueStore";
+
+export { startCapability, type CapabilityStart } from "./shared/worker/startCapability";
+
+export { getBlockers } from "./features/compute/data/computeBlockers";
+
+export { TitleReportPanel } from "./features/titlereport/component/TitleReportPanel";
+export { useTitleReportStore } from "./features/titlereport/store/titleReportStore";
+export type * from "./features/titlereport/type/titleReport.types";

@@ -59,7 +59,7 @@ it.each([500, 7500, 10000].flatMap(intervalMs => [false, true].map(complete => (
   }
 });
 
-it("does not endorse or report a timeout after computation is canceled", async () => {
+it("does not endorse or report a timeout after computation ownership resets", async () => {
   vi.useFakeTimers();
   const client = { calculate: vi.fn(async () => ({ status: "processing", data: null })), computation: vi.fn(), status: vi.fn(async () => ({ status: "pending", data: null })), submit: vi.fn(), data: vi.fn() };
   const onError = vi.fn();
@@ -67,6 +67,7 @@ it("does not endorse or report a timeout after computation is canceled", async (
   try {
     await act(async () => { await vi.advanceTimersByTimeAsync(0); });
     expect(client.calculate).toHaveBeenCalledOnce();
+    useRecordStore.getState().reset();
     view.unmount();
     await act(async () => { await vi.advanceTimersByTimeAsync(202500); });
     expect(client.computation).not.toHaveBeenCalled();
@@ -78,7 +79,7 @@ it("does not endorse or report a timeout after computation is canceled", async (
   }
 });
 
-it.each(["pending", "completed"])("does not start another stage when initial status %s arrives after cancellation", async status => {
+it.each(["pending", "completed"])("does not start another stage when initial status %s arrives after owner reset", async status => {
   let finish!: (value: { status: string; data: null }) => void;
   const client = {
     status: vi.fn(() => new Promise<{ status: string; data: null }>(resolve => { finish = resolve; })),
@@ -87,6 +88,7 @@ it.each(["pending", "completed"])("does not start another stage when initial sta
   const onComplete = vi.fn(), onError = vi.fn();
   const view = renderHook(() => useRecord({ request: { authToken: "token", capability: "record", document: "doc", documentApiGatewayUrl: "gateway", intervalMs: 0, session: "session", requestId: "cancel-status-" + status }, workerClient: client, onComplete, onError, onProgress: vi.fn() }));
   await waitFor(() => expect(client.status).toHaveBeenCalledOnce());
+  useRecordStore.getState().reset();
   view.unmount();
   await act(async () => { finish({ status, data: null }); });
   expect(client.calculate).not.toHaveBeenCalled();

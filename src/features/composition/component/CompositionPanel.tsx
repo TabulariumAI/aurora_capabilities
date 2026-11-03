@@ -1,5 +1,5 @@
 import { useMemo, type JSX } from "react";
-import { ProgressView } from "../../progressview/component/ProgressView";
+import { ProgressView } from "aurora-core";
 import { useProgress } from "../../progressview/hook/useProgress";
 import { COMPOSITION_SHORTCUTS, type CompositionPanelProps, type CompositionResult } from "../../../shared/type/capability.types";
 import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
@@ -35,7 +35,7 @@ export function CompositionPanel(props: CompositionPanelProps): JSX.Element {
   }
 
   return (
-    <ProgressView
+    <ProgressView autoScroll={true} highlightLast={true}
       fillCompletion={false}
       intro="I’ll keep you updated while I compose the document and prepare its metadata."
       jobs={progress.jobs}

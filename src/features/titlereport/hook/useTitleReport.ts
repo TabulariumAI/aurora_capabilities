@@ -1,0 +1,174 @@
+import { useEffect, useMemo, useRef } from "react";
+import type { ProgressJob } from "aurora-core";
+import { pollSteps } from "../../../shared/worker/capabilityHttp";
+import { prepareTitleReport, submitSession, toTitleReportError } from "../data/titleReportData";
+import { useTitleReportStore } from "../store/titleReportStore";
+import type {
+  TitleReportFailure,
+  TitleReportPanelProps,
+} from "../type/titleReport.types";
+import { createTitleReportWorkerClient } from "../worker/titleReportWorkerClient";
+
+const messages = [
+  "Retrieving Indexes...",
+  "Analyzing Indexing...",
+  "Analyzing Indexing...",
+  "Generating Report...",
+  "Generating Report...",
+  "Retrieving Report...",
+  "Retrieving Report...",
+] as const;
+
+function pollingProgress(attempt: number) {
+  if (attempt < 2) return { completed: attempt + 1, total: 2, unit: "steps" as const };
+  if (attempt < 4) return { completed: attempt - 1, total: 2, unit: "steps" as const };
+  return { completed: attempt - 3, total: 18, unit: "steps" as const };
+}
+
+type TitleReportProgressCallbacks = {
+  onProgress(event: ProgressJob): void;
+  resetProgress(): void;
+};
+
+function toStageFailure(error: unknown, fallback: string): TitleReportFailure["error"] {
+  const failure = toTitleReportError(error, fallback);
+  return failure.error === fallback
+    ? failure
+    : { ...failure, error: `${fallback.slice(0, -1)}: ${failure.error}` };
+}
+
+export function useTitleReport({
+  onError,
+  onGenerated,
+  onProgress,
+  request,
+  resetProgress,
+}: Pick<TitleReportPanelProps, "onError" | "onGenerated" | "request"> & TitleReportProgressCallbacks) {
+  const callbacks = useRef({ onError, onGenerated });
+  callbacks.current = { onError, onGenerated };
+  const client = useMemo(
+    () => createTitleReportWorkerClient({ apiBaseUrl: request.apiGatewayUrl }),
+    [request.apiGatewayUrl],
+  );
+
+  useEffect(() => {
+    if (!useTitleReportStore.getState().begin(request)) return;
+    let running = true;
+    const active = () => running && useTitleReportStore.getState().request === request;
+    const run = async () => {
+      const { regenerate } = useTitleReportStore.getState();
+      resetProgress();
+      let progressId = "status-0";
+      let message: string = messages[0];
+      let sawRetrievingPoll = false;
+      try {
+        onProgress({ jobId: `${request.batch}-${progressId}`, message, phase: "started" });
+        let complete = false;
+        if (!regenerate) {
+          complete = await client.status(request.authToken, request.batch, request.sessions, true);
+          if (!active()) return;
+        }
+        const submit = !complete && !regenerate && request.sessions !== undefined && !useTitleReportStore.getState().submitted;
+        if (submit) {
+          progressId = "link";
+          for (const [index, session] of request.sessions!.entries()) {
+            message = "Linking sessions...";
+            onProgress({
+              jobId: `${request.batch}-${progressId}`,
+              message,
+              phase: "started",
+              progress: { completed: index + 1, total: request.sessions!.length, unit: "sessions" },
+            });
+            await submitSession(client, request.authToken, request.batch, session);
+            if (!active()) return;
+          }
+          progressId = "generate";
+          message = "Starting report generation...";
+          onProgress({ jobId: `${request.batch}-${progressId}`, message, phase: "started" });
+          await client.generate(request.authToken, request.batch, request.sessions);
+          if (!active()) return;
+          useTitleReportStore.getState().setSubmitted(request);
+        }
+
+        progressId = "status-0";
+        message = messages[0];
+        onProgress({ jobId: `${request.batch}-${progressId}`, message, phase: "started" });
+        if (regenerate) {
+          try {
+            await client.aggregate(request.authToken, request.batch, request.sessions);
+          } catch (error) {
+            throw toStageFailure(error, "Aggregation failed.");
+          }
+        }
+        if (!active()) return;
+        const generated = submit || regenerate || !complete;
+
+        if (submit || regenerate) {
+          complete = await client.status(request.authToken, request.batch, request.sessions);
+          if (!active()) return;
+        }
+
+        if (!complete) {
+          for await (const step of pollSteps(request.intervalMs, 21)) {
+            if (!active()) return;
+            progressId = `status-${step + 1}`;
+            message = messages[Math.min(step + 1, messages.length - 1)];
+            const progress = pollingProgress(step);
+            if (step >= 4) sawRetrievingPoll = true;
+            onProgress({ jobId: `${request.batch}-${progressId}`, message, phase: "started", progress });
+            complete = await client.status(request.authToken, request.batch, request.sessions);
+            if (!active()) return;
+            if (complete) break;
+          }
+        }
+
+        if (!complete) {
+          throw {
+            code: "REPORT_TIMEOUT",
+            error: "Report generation timed out.",
+          };
+        }
+
+        progressId = "data";
+        message = "Retrieving Report...";
+        onProgress({
+          jobId: `${request.batch}-${progressId}`,
+          message,
+          phase: "started",
+          progress: sawRetrievingPoll
+            ? { completed: 18, total: 18, unit: "steps" }
+            : { completed: 1, total: 1, unit: "steps" },
+        });
+        let data: unknown;
+        try {
+          data = await client.data(request.authToken, request.batch);
+        } catch (error) {
+          throw toStageFailure(error, "Failed to get chain set.");
+        }
+        if (!active()) return;
+        useTitleReportStore.getState().setReady(request, prepareTitleReport(data, request.batch));
+        if (generated) {
+          callbacks.current.onGenerated();
+        }
+      } catch (error) {
+        if (!active()) return;
+        const failure: TitleReportFailure = {
+          error: toTitleReportError(error, "An error occurred while processing the report."),
+          operation: "load",
+        };
+        useTitleReportStore.getState().setError(request, failure);
+        onProgress({ error: failure.error.error, jobId: `${request.batch}-${progressId}`, message, phase: "failed" });
+        callbacks.current.onError?.(failure);
+      } finally {
+        running = false;
+      }
+    };
+
+    void run();
+    return () => {
+      if (!running) return;
+      running = false;
+      useTitleReportStore.getState().cancelLoad(request);
+    };
+  }, [client, onProgress, request, resetProgress]);
+}

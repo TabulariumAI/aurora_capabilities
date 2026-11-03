@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { progressMessageStyles, progressStyles } from "../../features/progressview/style/progress.styles";
+import { progressMessageStyles, progressStyles } from "aurora-core";
 import { capabilityStyles } from "../style/capabilityStyles";
 
 describe("capability styles", () => {

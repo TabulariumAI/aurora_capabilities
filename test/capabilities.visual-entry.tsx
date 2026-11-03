@@ -1,7 +1,9 @@
+/// <reference types="vite/client" />
 import { createRoot } from "react-dom/client";
 import type { CSSProperties } from "react";
 import { CompositionPanel, ComputePanel, ManifestPanel, RecordPanel, RedactPanel } from "../src/public-api";
-import { ProgressView } from "../src/features/progressview/component/ProgressView";
+import { ProgressView } from "aurora-core";
+import "../../document_web/src/bootstrap/style/root.css";
 
 const params = new URLSearchParams(window.location.search);
 const capability = params.get("capability");
@@ -52,7 +54,7 @@ async function status() {
 function App() {
   if (capability === "progress") {
     return (
-      <ProgressView
+      <ProgressView autoScroll={true} highlightLast={true}
         fillCompletion={false}
         intro="I’ll keep you updated as I generate the manifest."
         jobs={Array.from({ length: 20 }, (_, index) => ({

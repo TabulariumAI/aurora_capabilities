@@ -1,3 +1,4 @@
+import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 import { create } from "zustand";
 import type { CapabilityStatus, CompositionFailure, CompositionRequest } from "../../../shared/type/capability.types";
 
@@ -39,18 +40,19 @@ export const useCompositionStore = create<CompositionStoreState>()((set, get) =>
     set({ visible: true });
   },
   reset() {
+    useCapabilityDataStore.getState().clearRuns("composition");
     set({ failure: null, openSegment: null, request: null, runningRequestId: null, status: "idle", visible: false });
   },
   setError(failure) {
     if (get().request?.requestId !== failure.requestId) return;
-    set({ failure, runningRequestId: null, status: "error", visible: true });
+    set({ failure, runningRequestId: null, status: "error" });
   },
   setOpenSegment(segment) {
     set({ openSegment: segment });
   },
   setReady(requestId) {
     if (get().request?.requestId !== requestId) return;
-    set({ failure: null, runningRequestId: null, status: "ready", visible: true });
+    set({ failure: null, runningRequestId: null, status: "ready" });
   },
   setRunning(requestId) {
     if (get().runningRequestId === requestId) return false;
