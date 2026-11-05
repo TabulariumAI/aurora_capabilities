@@ -190,11 +190,6 @@ function ComputeFooter({ data, session, onEndorse, failure }: Pick<ComputePanelP
   const balanced = !failure && feeTotal === fundTotal;
 
   return <>
-        <div aria-label="Row status legend" role="note" style={computeStyles.legend}>
-          <span><span aria-hidden="true" style={{ color: "#15803d" }}>●</span> No ambiguity reported</span>
-          <span><span aria-hidden="true" style={{ color: "#b45309" }}>●</span> Ambiguous / saving</span>
-          <span><span aria-hidden="true" style={{ color: "#B42318" }}>●</span> Save failed</span>
-        </div>
         <div aria-label="Compute total" className="compute-total" role="group" style={{ ...computeStyles.row, ...computeStyles.total }}>
           <span style={{ ...computeStyles.label, ...computeStyles.totalText, gridColumn: "1 / 3" }}>Total fees</span>
           <span style={{ ...computeStyles.value, ...computeStyles.totalText, gridColumn: "3" }}>{failure ? <ErrorBadge label="Total fees" error={failure} /> : currencyFormat.format(feeTotal! / 100)}</span>

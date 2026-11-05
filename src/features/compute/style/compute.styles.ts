@@ -22,7 +22,6 @@ export const computeStyles = {
   deleteAction: { color: "#B42318", borderLeft: "1px solid var(--border-card)", borderRadius: 0 },
   orderActions: { display: "flex", gridColumn: "4 / 6", gap: "0.125rem" },
   subtotal: { color: "var(--slate-500)", fontSize: "0.85rem", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" },
-  legend: { display: "flex", flexWrap: "wrap", gap: "0.35rem 1rem", color: "var(--slate-500)", fontSize: "0.75rem", margin: "0.5rem 0 0 2rem" },
   saveStatus: { color: "var(--slate-500)", fontSize: "0.85rem", margin: "0", textAlign: "center" },
   added: { color: "var(--slate-500)", fontSize: "0.75rem", fontWeight: 400, marginLeft: "0.5rem" },
   failedRow: rowStyles.failedRow,

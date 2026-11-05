@@ -15,7 +15,7 @@ const mock = vi.hoisted(() => ({
 
 const progress = vi.hoisted(() => ({ reset: vi.fn() }));
 
-vi.mock("../worker/titleReportWorkerClient", () => ({
+vi.mock("../worker/titleReportWorkerClient", async importOriginal => ({ ...await importOriginal<typeof import("../worker/titleReportWorkerClient")>(),
   createTitleReportWorkerClient: vi.fn(() => mock.client),
 }));
 

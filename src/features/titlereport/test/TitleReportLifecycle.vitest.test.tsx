@@ -9,7 +9,7 @@ import type { TitleReportRequest } from "../type/titleReport.types";
 const client = vi.hoisted(() => ({
   aggregate: vi.fn(), data: vi.fn(), generate: vi.fn(), status: vi.fn(), submit: vi.fn(),
 }));
-vi.mock("../worker/titleReportWorkerClient", () => ({ createTitleReportWorkerClient: () => client }));
+vi.mock("../worker/titleReportWorkerClient", async importOriginal => ({ ...await importOriginal<typeof import("../worker/titleReportWorkerClient")>(), createTitleReportWorkerClient: () => client }));
 
 const request: TitleReportRequest = {
   apiGatewayUrl: "https://gateway.test", authToken: "token-1", intervalMs: 10,
@@ -202,7 +202,7 @@ it("restarts after a request replacement without accepting stale progress or fai
   const stale = deferred<boolean>();
   client.status.mockReturnValueOnce(stale.promise).mockResolvedValueOnce(false);
   const view = render(<TitleReportPanel request={request} onGenerated={onGenerated} onError={onError} onReadyChange={vi.fn()} onSession={vi.fn()} />);
-  const replacement = { ...request, apiGatewayUrl: "https://replacement.test" };
+  const replacement = {  ...request, apiGatewayUrl: "https://replacement.test" };
   act(() => useTitleReportStore.getState().open(replacement));
   view.rerender(<TitleReportPanel request={replacement} onGenerated={onGenerated} onError={onError} onReadyChange={vi.fn()} onSession={vi.fn()} />);
   await waitFor(() => expect(useTitleReportStore.getState().status).toBe("ready"));

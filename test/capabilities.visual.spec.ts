@@ -101,7 +101,7 @@ test("compute formats fees and funds and confirms endorsement", async ({ page },
   await expect(root.getByTestId("progress-view")).toHaveCount(0);
   await expect(root.getByRole("status", { name: "Save status" })).toHaveText("Ready to endorse.");
   await expect(root.getByRole("group", { name: "Funds subtotal" })).toHaveText("$125.00");
-  await expect(root.getByRole("note", { name: "Row status legend" })).toContainText("No ambiguity reported");
+  await expect(root.getByRole("note", { name: "Row status legend" })).toHaveCount(0);
   await expect(root.locator("[data-metadata-context='true']")).toHaveCount(0);
   const feeFactors = root.getByRole("button", { name: "Factors" });
   const fees = root.getByRole("button", { name: "Fees", exact: true });

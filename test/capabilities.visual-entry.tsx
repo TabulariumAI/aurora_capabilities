@@ -14,7 +14,7 @@ if (capability !== "compute" && capability !== "composition" && capability !== "
 if (state !== "ready" && state !== "pending" && state !== "failed" && state !== "data-failed") {
   throw new Error("A valid capability state is required.");
 }
-const requestBase = {
+const requestBase = { 
   document: "visual.pdf",
   authToken: "token",
   documentApiGatewayUrl: "https://example.test",

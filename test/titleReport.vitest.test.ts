@@ -9,7 +9,7 @@ afterEach(() => useTitleReportStore.getState().reset());
 it("exposes the title panel and a single store through the package entry point", () => {
   expect(TitleReportPanel).toBe(Panel);
   expect(useTitleReportStore).toBe(store);
-  const request: TitleReportRequest = {
+  const request: TitleReportRequest = { 
     apiGatewayUrl: "https://gateway.example.test", authToken: "test-token", intervalMs: 500,
     batch: "Batch", batchCode: "batch", batchId: "batch", batchGroup: "user", sessions: ["first", "second"],
   };

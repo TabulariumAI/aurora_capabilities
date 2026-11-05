@@ -34,6 +34,7 @@ describe("Compute details", () => {
     expect(screen.getByRole("region", { name: "Compute" })).toBeVisible();
     expect(screen.getByRole("region", { name: "Compute" })).toHaveStyle({ textAlign: "left" });
     expect(screen.getByRole("region", { name: "Compute accordion" })).toBeVisible();
+    expect(screen.queryByRole("note", { name: "Row status legend" })).not.toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Metadata" })).toBeNull();
     expect(container.querySelector(".metadata-row")).toBeNull();
     expect(screen.getByRole("button", { name: "Factors" })).toBeVisible();

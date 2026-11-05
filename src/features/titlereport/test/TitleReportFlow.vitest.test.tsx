@@ -7,7 +7,7 @@ import type { TitleReportRequest } from "../type/titleReport.types";
 const client = vi.hoisted(() => ({
   aggregate: vi.fn(), data: vi.fn(), generate: vi.fn(), status: vi.fn(), submit: vi.fn(),
 }));
-vi.mock("../worker/titleReportWorkerClient", () => ({ createTitleReportWorkerClient: () => client }));
+vi.mock("../worker/titleReportWorkerClient", async importOriginal => ({ ...await importOriginal<typeof import("../worker/titleReportWorkerClient")>(), createTitleReportWorkerClient: () => client }));
 
 const request: TitleReportRequest = {
   apiGatewayUrl: "https://gateway.test", authToken: "token-1", intervalMs: 0,
