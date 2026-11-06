@@ -10,6 +10,24 @@ afterEach(() => {
 });
 
 describe("useComposition", () => {
+  it.each([false, true])("preserves server failure text from status polling; delayed=%s", async delayed => {
+    const onError = vi.fn();
+    const onProgress = vi.fn();
+    let checks = 0;
+    const reason = "The document metadata could not be read.";
+    renderHook(() => useComposition({
+      request: { document: "document.pdf", authToken: "t", capability: "composition", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "status-error", session: "s" },
+      onComplete: vi.fn(), onError, onProgress,
+      workerClient: {
+        submit: async () => ({ data: "", status: "processing" }),
+        status: async () => (++checks === 1 && delayed ? { data: "", status: "processing" } : { data: reason, status: "error" }),
+        data: vi.fn(), options: vi.fn(),
+      },
+    }));
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "status", error: expect.objectContaining({ error: reason }) })));
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: "failed", error: reason }));
+  });
+
   it("completes after polling", async () => {
     const onComplete = vi.fn();
     const onProgress = vi.fn();

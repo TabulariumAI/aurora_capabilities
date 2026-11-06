@@ -19,7 +19,7 @@ export function runRecord({ onComplete, onError, request, workerClient }: Pick<R
       const defaultMessage = operation === "data" ? "Retrieve metadata failed." : "Record request failed.";
       const failure: RecordFailure = {
         capability: "record",
-        error: operation === "data" ? { code: "RETRIEVE_METADATA_FAILED", error: "Retrieve metadata failed." } : workerError(error, defaultMessage),
+        error: workerError(error, defaultMessage),
         operation,
         requestId: request.requestId,
         session: request.session,

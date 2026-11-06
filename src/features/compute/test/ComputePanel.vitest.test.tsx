@@ -13,7 +13,8 @@ describe("ComputePanel", () => {
   it("renders placeholders while the initial calculation is pending", async () => {
     render(<ComputePanel onAddFee={() => undefined} onAddFund={() => undefined} onResource={(request: ResourceRequest) => request.callback({ ok: true, data: "metadata-etag" })} request={{ document: "document.pdf", authToken: "t", capability: "compute", refresh: false, documentApiGatewayUrl: "u", intervalMs: 1_000, requestId: "r-cp-progress", session: "s" }} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} onComplete={vi.fn()} onEndorse={vi.fn()} onError={vi.fn()} workerClient={{ model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), submit: async () => ({ data: null, status: "processing" }), status: async () => ({ data: null, status: "processing" }), data: vi.fn() }} />);
 
-    expect(screen.getByRole("status", { name: "Loading fees and funds" })).toHaveAttribute("aria-busy", "true");
+    expect(screen.queryByRole("status", { name: "Loading fees and funds" })).toBeNull();
+    expect(await screen.findByRole("status", { name: "Loading fees and funds" })).toHaveAttribute("aria-busy", "true");
     const loading = screen.getByRole("status", { name: "Loading fees and funds" });
     for (const title of ["Factors", "Fees", "Funds", "Total fees"]) expect(within(loading).getByText(title, { exact: true })).toBeVisible();
     expect(loading.querySelectorAll(".compute-row")).toHaveLength(2);

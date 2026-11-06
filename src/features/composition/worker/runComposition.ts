@@ -42,9 +42,7 @@ export function runComposition({ onComplete, onError, request, workerClient }: P
       if (!isActive())
         return;
       if (isFailed(response.status))
-        throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as {
-            data?: unknown;
-          })?.data}` };
+        throw { code: "COMPOSITION_ERR", error: response.data };
       let complete = isComplete(response.status);
       if (!complete) {
         for await (const step of pollSteps(request.intervalMs, 27)) {
@@ -56,9 +54,7 @@ export function runComposition({ onComplete, onError, request, workerClient }: P
           if (!isActive())
             return;
           if (isFailed(response.status))
-            throw { code: "COMPOSITION_ERR", error: `An error occurred during composition: ${(response.data as {
-                data?: unknown;
-              })?.data}` };
+            throw { code: "COMPOSITION_ERR", error: response.data };
           complete = isComplete(response.status);
           if (complete)
             break;

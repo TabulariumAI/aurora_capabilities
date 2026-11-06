@@ -7,6 +7,20 @@ import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 afterEach(() => useCapabilityDataStore.getState().reset());
 
 describe("useRecord", () => {
+  it.each([401, 403, 500])("preserves the recorded-file retrieval failure and its status %i", async status => {
+    const failure = { code: status === 401 ? "session_token_expired" : "record_download_denied", error: "The recorded file could not be retrieved.", status, details: { request: "record" } };
+    const onError = vi.fn();
+    const onProgress = vi.fn();
+    renderHook(() => useRecord({
+      request: { authToken: "t", capability: "record", document: "d", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "record-failure", session: "s" },
+      onComplete: vi.fn(), onError, onProgress,
+      workerClient: { calculate: vi.fn(), computation: vi.fn(), submit: vi.fn(),
+        status: async () => ({ status: "completed", data: "" }), data: async () => { throw failure; } },
+    }));
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(expect.objectContaining({ operation: "data", error: failure })));
+    expect(onProgress).toHaveBeenLastCalledWith(expect.objectContaining({ phase: "failed", error: failure.error }));
+  });
+
   it("uses status-first flow and completes with data", async () => {
     const onComplete = vi.fn();
     const onProgress = vi.fn();

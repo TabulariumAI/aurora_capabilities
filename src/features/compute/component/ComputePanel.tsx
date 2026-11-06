@@ -31,7 +31,7 @@ export function ComputePanel(props: ComputePanelProps): JSX.Element {
     );
   }
 
-  if (!props.request.refresh && store.status !== "error") return <ComputePlaceholder />;
+  if (!props.request.refresh && store.status !== "error") return <ComputePlaceholder key={props.request.session} />;
 
   return (
     <ProgressView autoScroll={true} highlightLast={true}
