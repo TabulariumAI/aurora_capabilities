@@ -19,4 +19,24 @@ describe("manifest store", () => {
     expect(useManifestStore.getState().status).toBe("error");
     expect(useManifestStore.getState().runningRequestId).toBeNull();
   });
+
+  it("confirms only the current request and retains an immutable submitted draft", () => {
+    const store = useManifestStore.getState();
+    store.reset();
+    store.open({ document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 1, requestId: "r", session: "s" });
+    store.setOption("include_pages", true);
+    store.confirm("old-request");
+    expect(useManifestStore.getState().request?.options).toBeUndefined();
+    store.confirm("r");
+    const submitted = useManifestStore.getState().request;
+    expect(submitted?.options).toEqual({ include_pages: true, include_gates: false, include_notes: false });
+    store.setOption("include_notes", true);
+    store.confirm("r");
+    expect(useManifestStore.getState().request).toBe(submitted);
+    expect(useManifestStore.getState().options.include_notes).toBe(false);
+    store.clearSession("other-session");
+    expect(useManifestStore.getState().request).toBe(submitted);
+    store.clearSession("s");
+    expect(useManifestStore.getState()).toMatchObject({ request: null, status: "idle", options: { include_pages: false, include_gates: false, include_notes: false } });
+  });
 });

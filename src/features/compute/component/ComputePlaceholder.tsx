@@ -7,7 +7,7 @@ export function ComputePlaceholder(): JSX.Element {
     <section aria-label="Compute" style={computeStyles.root}>
       <style>{computeCss}</style>
       <div data-panel-scroll="true" style={computeStyles.accordion}>
-        <LoadPlaceholder label="Loading fees and funds">
+        <LoadPlaceholder immediate label="Loading fees and funds">
           {["Factors", "Fees", "Funds"].map(title => (
             <div key={title} style={computeStyles.section}>
               <div style={computeStyles.header}>

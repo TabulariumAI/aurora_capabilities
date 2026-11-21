@@ -16,21 +16,21 @@ it.each(["total_amount", "10.0"])("switches action groups through discard, savin
   await computeQueueStore.getState().setResult("session", { fee_factors: [], fees: [{ name: "fee", amount: "10.00", formula: "10.0", explanation: "Fee" }], funds: [{ name: "fund", amount: "10.00", formula, explanation: "Fund" }] });
   function View() {
     const result = computeQueueStore(state => state.data.session);
-    return <ComputeDetails session="session" data={result} onAddFee={vi.fn()} onAddFund={vi.fn()} onEndorse={vi.fn()} openSegment="fee" setOpenSegment={vi.fn()} shortcuts={new Map()} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} />;
+    return <ComputeDetails session="session" data={result} onAddFee={vi.fn()} onAddFund={vi.fn()} openSegment="fee" setOpenSegment={vi.fn()} shortcuts={new Map()} segments={{ ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" }} />;
   }
   render(<View />);
   expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Discard changes" })).toBeNull();
   await act(async () => { await computeQueueStore.getState().enqueue("session", { action: "add", fee: { name: "Extra", value: "2.50" } }); });
   expect(screen.getByRole("group", { name: "Compute total" })).toHaveTextContent("$12.50");
-  expect(screen.getByRole("status", { name: "Save status" })).toHaveTextContent("Unsaved changes. Save changes before endorsing.");
+  expect(screen.getByRole("status", { name: "Save status" })).toHaveTextContent(/^Unsaved changes\.$/);
   expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   expect(screen.queryByRole("button", { name: "Endorse" })).toBeNull();
   fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
   await waitFor(() => expect(screen.getByRole("group", { name: "Compute total" })).toHaveTextContent("$10.00"));
   expect(client.patch).not.toHaveBeenCalled();
-  expect(screen.getByRole("status", { name: "Save status" })).toHaveTextContent("Ready to endorse.");
-  expect(screen.getByRole("button", { name: "Endorse" })).toBeEnabled();
+  expect(screen.queryByRole("status", { name: "Save status" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Endorse" })).toBeNull();
   await act(async () => { await computeQueueStore.getState().enqueue("session", { action: "add", fee: { name: "Extra", value: "2.50" } }); });
   client.patch.mockRejectedValueOnce(new Error("Save unavailable"));
   fireEvent.click(screen.getByRole("button", { name: "Save" }));
@@ -44,9 +44,10 @@ it.each(["total_amount", "10.0"])("switches action groups through discard, savin
   expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "Discard changes" })).toBeDisabled();
   await act(async () => { finishSave(); });
-  await waitFor(() => expect(screen.getByRole("button", { name: "Endorse" })).toBeVisible());
+  await waitFor(() => expect(screen.queryByRole("status", { name: "Save status" })).toBeNull());
   expect(screen.queryByRole("button", { name: "Save" })).toBeNull();
   expect(screen.queryByRole("button", { name: "Discard changes" })).toBeNull();
-  if (formula === "total_amount") expect(screen.getByRole("button", { name: "Endorse" })).toBeEnabled();
-  else expect(screen.getByRole("button", { name: "Endorse" })).toBeDisabled();
+  expect(screen.queryByRole("button", { name: "Endorse" })).toBeNull();
+  if (formula === "total_amount") expect(screen.queryByRole("alert")).toBeNull();
+  else expect(screen.getByRole("alert")).toHaveTextContent("Fees ($12.50) and Funds ($10.00) do not match.");
 });

@@ -1,5 +1,56 @@
 import { expect, test } from "@playwright/test";
 
+for (const width of [390, 840, 1440]) {
+  test(`manifest choices confirm and submit through HTTP at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 700 });
+    const submissions: unknown[] = [];
+    await page.route("https://storage.test/manifest.pdf", route => route.fulfill({ contentType: "application/pdf", headers: { "access-control-allow-origin": "*" }, body: "%PDF-1.4\n%%EOF" }));
+    await page.route("https://example.test/v1/manifest/**", async route => {
+      const request = route.request();
+      if (request.method() === "OPTIONS") {
+        await route.fulfill({ headers: { "access-control-allow-origin": "*", "access-control-allow-headers": "*", "access-control-allow-methods": "GET,POST,OPTIONS" }, body: "" });
+        return;
+      }
+      if (request.method() === "POST") submissions.push(request.postDataJSON());
+      await route.fulfill({ contentType: "application/json", headers: { "access-control-allow-origin": "*" }, body: JSON.stringify({ status: "completed", data: request.url().endsWith("/data") ? JSON.stringify({ pdf: "https://storage.test/manifest.pdf" }) : null }) });
+    });
+    for (let mask = 0; mask < (width === 1440 ? 8 : 1); mask++) {
+      await page.goto("/?capability=manifest&state=ready&transport=http");
+      const options = { include_pages: Boolean(mask & 1), include_gates: Boolean(mask & 2), include_notes: Boolean(mask & 4) };
+      const choices = page.getByRole("group", { name: "Include in manifest" });
+      await expect(choices).toBeVisible();
+      for (const [field, label] of [["include_pages", "Document images"], ["include_gates", "Compliance gates"], ["include_notes", "IQ notes"]] as const) {
+        const checkbox = choices.getByRole("checkbox", { name: label });
+        await expect(checkbox).not.toBeChecked();
+        if (options[field]) await checkbox.check();
+      }
+      const generate = page.getByRole("button", { name: "Generate" });
+      await expect(generate).toBeVisible();
+      const [actionsBox, buttonBox] = await Promise.all([generate.locator("..").boundingBox(), generate.boundingBox()]);
+      expect(actionsBox!.y + actionsBox!.height - buttonBox!.y - buttonBox!.height).toBeGreaterThanOrEqual(12);
+      const boxes = await Promise.all([choices.boundingBox(), generate.boundingBox()]);
+      expect(boxes[1]!.y).toBeGreaterThanOrEqual(boxes[0]!.y + boxes[0]!.height);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if (mask === 0) await page.screenshot({ path: testInfo.outputPath("manifest-choices.png") });
+      await generate.focus();
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("button", { name: "Confirm", exact: true })).toBeVisible();
+      expect(submissions).toHaveLength(mask);
+      await page.keyboard.press("Enter");
+      await expect(page.getByRole("button", { name: "Download manifest" })).toBeVisible();
+      expect(submissions).toHaveLength(mask + 1);
+      expect(submissions[mask]).toEqual(options);
+      await expect(generate).toBeDisabled();
+      for (const checkbox of await choices.getByRole("checkbox").all()) await expect(checkbox).toBeDisabled();
+      if (mask === 0) await page.screenshot({ path: testInfo.outputPath("manifest-completed.png") });
+      const download = page.waitForEvent("download");
+      await page.getByRole("button", { name: "Download manifest" }).click();
+      expect((await download).suggestedFilename()).toBe("manifest.pdf");
+      await expect(page.getByText("Manifest downloaded.", { exact: true })).toBeVisible();
+    }
+  });
+}
+
 const ready = [
   { action: "Endorsed Document", capability: "record", message: "Recording complete.", process: "RECORDING THE DOCUMENT" },
   { action: "Download Redacted PDF", capability: "redact", message: "Redaction complete.", process: "REDACTING THE DOCUMENT" },
@@ -9,6 +60,10 @@ const ready = [
 for (const capability of ready) {
   test(`${capability.capability} keeps its result in the completed progress timeline`, async ({ page }, testInfo) => {
     await page.goto(`/?capability=${capability.capability}&state=ready`);
+    if (capability.capability === "manifest") {
+      await page.getByRole("button", { name: "Generate" }).click();
+      await page.getByRole("button", { name: "Confirm", exact: true }).click();
+    }
     const progress = page.getByTestId("progress-view");
     const rows = progress.getByRole("listitem");
 
@@ -24,6 +79,8 @@ for (const capability of ready) {
 
 test("manifest uses the shared success indicators and theme colors", async ({ page }) => {
   await page.goto("/?capability=manifest&state=ready");
+  await page.getByRole("button", { name: "Generate" }).click();
+  await page.getByRole("button", { name: "Confirm", exact: true }).click();
   const progress = page.getByTestId("progress-view");
   const rows = progress.getByRole("listitem");
   await expect(rows.first().getByLabel("Completed")).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
@@ -94,12 +151,12 @@ test("composition renders batch-link progress below the accordion", async ({ pag
   await root.screenshot({ path: testInfo.outputPath("composition-ready.png") });
 });
 
-test("compute formats fees and funds and confirms endorsement", async ({ page }, testInfo) => {
+test("compute formats fees and funds without endorsement controls", async ({ page }, testInfo) => {
   await page.goto("/?capability=compute&state=ready&balanced=true");
   const root = page.locator("main");
 
   await expect(root.getByTestId("progress-view")).toHaveCount(0);
-  await expect(root.getByRole("status", { name: "Save status" })).toHaveText("Ready to endorse.");
+  await expect(root.getByRole("status", { name: "Save status" })).toHaveCount(0);
   await expect(root.getByRole("group", { name: "Funds subtotal" })).toHaveText("$125.00");
   await expect(root.getByRole("note", { name: "Row status legend" })).toHaveCount(0);
   await expect(root.locator("[data-metadata-context='true']")).toHaveCount(0);
@@ -115,21 +172,18 @@ test("compute formats fees and funds and confirms endorsement", async ({ page },
   await expect(root.locator("article").filter({ hasText: "$125.00" })).toContainText("Recording fee");
   await funds.click();
   await expect(root.locator("article").filter({ hasText: "$125.00" })).toContainText("General fund");
-  const actions = root.getByRole("group", { name: "Compute actions" });
-  await expect(actions).toHaveCSS("margin-top", "12px");
-  await root.getByRole("button", { name: "Endorse" }).click();
-  await expect(root.getByRole("button", { name: "Confirm" })).toBeVisible();
-  await root.getByRole("button", { name: "Confirm" }).click();
-  await expect(root.getByRole("button", { name: "Endorse" })).toBeVisible();
+  await expect(root.getByRole("group", { name: "Compute actions" })).toHaveCount(0);
+  await expect(root.getByRole("button", { name: "Endorse" })).toHaveCount(0);
+  await expect(root.getByText("Ready to endorse.")).toHaveCount(0);
   await root.screenshot({ path: testInfo.outputPath("compute-ready.png") });
 });
 
-test("compute blocks endorsement for mismatched totals and hides draft actions", async ({ page }, testInfo) => {
+test("compute preserves mismatched totals without endorsement or draft actions", async ({ page }, testInfo) => {
   await page.goto("/?capability=compute&state=ready");
   const root = page.getByRole("region", { name: "Compute", exact: true });
   await expect(root.getByRole("alert")).toHaveText("Fees ($125.00) and Funds ($75.00) do not match.");
-  await expect(root.getByRole("button", { name: "Endorse" })).toBeDisabled();
-  await expect(root.getByRole("button", { name: "Endorse" })).toHaveAccessibleDescription("Fees and Funds must match before endorsing.");
+  await expect(root.getByRole("button", { name: "Endorse" })).toHaveCount(0);
+  await expect(root.getByRole("status", { name: "Save status" })).toHaveCount(0);
   await expect(root.getByRole("button", { name: "Save", exact: true })).toHaveCount(0);
   await expect(root.getByRole("button", { name: "Discard changes" })).toHaveCount(0);
   await expect(root.getByRole("button", { name: "Confirm", exact: true })).toHaveCount(0);
@@ -219,10 +273,11 @@ for (const width of [390, 840]) {
 
 test("manifest renders connected active progress", async ({ page }, testInfo) => {
   await page.goto("/?capability=manifest&state=pending");
+  await page.getByRole("button", { name: "Generate" }).click();
+  await page.getByRole("button", { name: "Confirm", exact: true }).click();
   const progress = page.getByTestId("progress-view");
 
   await expect(progress.getByTestId("progress-caption")).toHaveText("GENERATING THE INDEX MANIFEST");
-  await expect(progress.getByText("Checking manifest status...")).toBeVisible();
   await expect(progress.getByText("Generating document manifest...")).toBeVisible();
   await expect(progress.getByLabel("In progress")).toBeVisible();
   await expect(progress.getByText("Generating document manifest...").locator("..")).toHaveCSS("background-color", "rgb(224, 243, 255)");

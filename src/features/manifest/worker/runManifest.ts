@@ -14,15 +14,20 @@ function toManifestError(error: unknown, context: string) {
     : { ...base, error: `${context}: ${base.error}` };
 }
 export function runManifest({ onComplete, onError, request, workerClient }: Pick<ManifestPanelProps, "onComplete" | "onError" | "request" | "workerClient">) {
+  if (!request.options) {
+    useManifestStore.getState().open(request);
+    return;
+  }
+  const options = request.options;
   const client = workerClient ?? createManifestWorkerClient({ apiBaseUrl: request.documentApiGatewayUrl });
   runCapabilityJob(request, async ({ isActive, onProgress, finish }) => {
     useManifestStore.getState().open(request);
     useManifestStore.getState().setRunning(request.requestId);
-    let operation: ManifestFailure["operation"] = "status";
-    let context = "Manifest checkStatus failed";
-    let progressId = "status";
-    let message = "Checking manifest status...";
-    onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started" });
+    let operation: ManifestFailure["operation"] = "submit";
+    let context = "Manifest submit failed";
+    let progressId = "generating";
+    let message = "Generating document manifest...";
+    onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 0, total: 21, unit: "steps" } });
     const fail = (operation: ManifestFailure["operation"], error: unknown, context: string) => {
       const failure: ManifestFailure = {
         capability: "manifest",
@@ -37,23 +42,12 @@ export function runManifest({ onComplete, onError, request, workerClient }: Pick
       onError(failure);
     };
     try {
-      let response = await client.status(request.authToken, request.session);
-      if (!isActive())
-        return;
+      let response = await client.submit(request.authToken, request.session, options);
+      if (!isActive()) return;
       if (isFailed(response.status))
         throw { error: typeof response.data === "string" ? response.data : `${context}.` };
       let complete = isComplete(response.status);
       if (!complete) {
-        operation = "submit";
-        context = "Manifest submit failed";
-        progressId = "generating";
-        message = "Generating document manifest...";
-        onProgress({ jobId: `${request.requestId}-${progressId}`, message, phase: "started", progress: { completed: 0, total: 21, unit: "steps" } });
-        response = await client.submit(request.authToken, request.session);
-        if (!isActive())
-          return;
-        if (isFailed(response.status))
-          throw { error: typeof response.data === "string" ? response.data : `${context}.` };
         for await (const step of pollSteps(request.intervalMs, 21)) {
           if (!isActive())
             return;

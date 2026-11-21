@@ -7,7 +7,7 @@ import { useCapabilityDataStore } from "../../../shared/worker/capabilityData";
 afterEach(() => useCapabilityDataStore.getState().reset());
 
 describe("useManifest", () => {
-  it("completes status-first manifest flow", async () => {
+  it("submits a new manifest before retrieving its completed result", async () => {
     const onComplete = vi.fn();
     const onProgress = vi.fn();
     const data = {
@@ -15,18 +15,18 @@ describe("useManifest", () => {
       tif: "https://storage.test/subscription/s/ReportPage.Tiff?sig=token",
     };
     renderHook(() => useManifest({
-      request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "manifest", options: { include_pages: false, include_gates: false, include_notes: false }, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest", session: "s" },
       onComplete,
       onError: vi.fn(),
       onProgress,
       workerClient: {
         status: async () => ({ data: null, status: "completed" }),
-        submit: async () => ({ data: null, status: "processing" }),
+        submit: async () => ({ data: null, status: "completed" }),
         data: async () => data,
       },
     }));
     await waitFor(() => expect(onComplete).toHaveBeenCalled());
-    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Checking manifest status...", phase: "started" }));
+    expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Generating document manifest...", phase: "started" }));
     expect(onProgress).toHaveBeenCalledWith(expect.objectContaining({ message: "Manifest is ready to download.", phase: "completed" }));
     expect(useCapabilityDataStore.getState().getData("manifest", "s")).toEqual(data);
   });
@@ -35,13 +35,13 @@ describe("useManifest", () => {
     const onError = vi.fn();
     const onProgress = vi.fn();
     renderHook(() => useManifest({
-      request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-data", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "manifest", options: { include_pages: false, include_gates: false, include_notes: false }, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-data", session: "s" },
       onComplete: vi.fn(),
       onError,
       onProgress,
       workerClient: {
         status: async () => ({ data: null, status: "completed" }),
-        submit: vi.fn(),
+        submit: async () => ({ data: null, status: "completed" }),
         data: async () => { throw new Error("Data failed"); },
       },
     }));
@@ -58,7 +58,7 @@ describe("useManifest", () => {
     const onProgress = vi.fn();
     let checks = 0;
     renderHook(() => useManifest({
-      request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-counter", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "manifest", options: { include_pages: false, include_gates: false, include_notes: false }, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-counter", session: "s" },
       onComplete,
       onError: vi.fn(),
       onProgress,
@@ -79,13 +79,13 @@ describe("useManifest", () => {
     const onError = vi.fn();
     const onProgress = vi.fn();
     renderHook(() => useManifest({
-      request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-status", session: "s" },
+      request: { document: "document.pdf", authToken: "t", capability: "manifest", options: { include_pages: false, include_gates: false, include_notes: false }, documentApiGatewayUrl: "u", intervalMs: 0, requestId: "r-manifest-status", session: "s" },
       onComplete: vi.fn(),
       onError,
       onProgress,
       workerClient: {
         status: async () => ({ data: null, status: "error" }),
-        submit: vi.fn(),
+        submit: async () => ({ data: null, status: "processing" }),
         data: vi.fn(),
       },
     }));
@@ -108,7 +108,7 @@ it.each([false, true])("publishes only after data is ready; ownerReset=%s", asyn
     status: vi.fn(async () => ({ status: "completed", data: null })),
     data: vi.fn(() => new Promise<typeof data>((resolve) => { finish = resolve; })),
   };
-  const props = { request: { authToken: "t", capability: "manifest" as const, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-manifest", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
+  const props = { request: { authToken: "t", capability: "manifest" as const, options: { include_pages: false, include_gates: false, include_notes: false }, documentApiGatewayUrl: "u", document: "d", intervalMs: 0, requestId: "event-manifest", session: "event-session" }, onComplete: vi.fn(), onError: vi.fn(), onProgress: vi.fn(), workerClient };
   const view = renderHook(() => useManifest(props));
   await waitFor(() => expect(workerClient.data).toHaveBeenCalledOnce());
   if (ownerReset) { useManifestStore.getState().reset(); view.unmount(); }
@@ -133,14 +133,14 @@ it.each([500, 1000, 6000, 7500].flatMap(intervalMs => [false, true].map(complete
     data: vi.fn(async () => ({ pdf: "document.pdf", chain: [] })),
   };
   const view = renderHook(() => useManifest({
-    request: { document: "document.pdf", authToken: "t", capability: "manifest", documentApiGatewayUrl: "u", intervalMs, requestId: `budget-manifest-${complete}`, session: "budget-session" },
+    request: { document: "document.pdf", authToken: "t", capability: "manifest", options: { include_pages: false, include_gates: false, include_notes: false }, documentApiGatewayUrl: "u", intervalMs, requestId: `budget-manifest-${complete}`, session: "budget-session" },
     onComplete, onError, onProgress, workerClient,
   }));
   try {
     await act(async () => { await vi.advanceTimersByTimeAsync(157000); });
     expect(onError).not.toHaveBeenCalled();
     expect(workerClient.data).not.toHaveBeenCalled();
-    expect(workerClient.status).toHaveBeenCalledTimes(Math.floor(157000 / intervalMs) + 1);
+    expect(workerClient.status).toHaveBeenCalledTimes(Math.floor(157000 / intervalMs));
     if (complete) workerClient.status.mockResolvedValue({ status: "completed", data: null });
     await act(async () => { await vi.advanceTimersByTimeAsync(500); });
     expect(onComplete).toHaveBeenCalledTimes(complete ? 1 : 0);

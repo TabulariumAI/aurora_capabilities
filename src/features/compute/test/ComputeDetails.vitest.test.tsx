@@ -17,7 +17,7 @@ const data: ComputeResult = {
 
 function View({ result = data }: { result?: ComputeResult }) {
   const [openSegment, setOpenSegment] = useState("fee");
-  return <ComputeDetails session="session" data={result} onAddFee={vi.fn()} onAddFund={vi.fn()} onEndorse={vi.fn()} openSegment={openSegment} segments={segments} setOpenSegment={setOpenSegment} shortcuts={new Map([["fee", "f"], ["fund", "u"]])} />;
+  return <ComputeDetails session="session" data={result} onAddFee={vi.fn()} onAddFund={vi.fn()} openSegment={openSegment} segments={segments} setOpenSegment={setOpenSegment} shortcuts={new Map([["fee", "f"], ["fund", "u"]])} />;
 }
 
 afterEach(() => {
@@ -45,7 +45,7 @@ describe("Compute details", () => {
 
   it("removes refresh, clear and edit actions and opens Add Fee immediately", () => {
     const onAddFee = vi.fn();
-    render(<ComputeDetails session="session" data={data} onAddFee={onAddFee} onAddFund={vi.fn()} onEndorse={vi.fn()} openSegment="fee" segments={segments} setOpenSegment={vi.fn()} shortcuts={new Map()} />);
+    render(<ComputeDetails session="session" data={data} onAddFee={onAddFee} onAddFund={vi.fn()} openSegment="fee" segments={segments} setOpenSegment={vi.fn()} shortcuts={new Map()} />);
     expect(screen.queryByRole("button", { name: /Reprocess Fees|Clear Fees|Reprocess Funds|Clear Funds|Edit / })).toBeNull();
     const button = screen.getByRole("button", { name: "Add Fees" });
     fireEvent.click(button);
@@ -151,7 +151,7 @@ describe("Compute details", () => {
   });
 });
 
-it("shows draft status and Save failure, and blocks Endorse until Save or Discard changes", () => {
+it("retains draft status, Save failure, Save and Discard changes without endorsement", () => {
   computeQueueStore.getState().reset();
   computeQueueStore.setState({ tasks: [{ id: "queued", session: "session", change: { action: "add", fee: { name: "Extra", value: "1.00" } }, status: "failed", error: "Unavailable", patch: [] }] });
   const save = vi.spyOn(computeQueueStore.getState(), "save").mockResolvedValue(undefined);
@@ -173,7 +173,7 @@ it("opens Add Fund and moves funds with shared boundary controls while preservin
   const enqueue = vi.spyOn(computeQueueStore.getState(), "enqueue").mockResolvedValue(undefined);
   const first = { code: "one", name: "First Fund", amount: "1.00", formula: "1.00" };
   const last = { code: "two", name: "Last Fund", amount: "2.00", formula: "total_amount" };
-  const props = { session: "session", data: { funds: [first, last] }, onAddFee: vi.fn(), onAddFund, onEndorse: vi.fn(), openSegment: "fund", segments, setOpenSegment: vi.fn(), shortcuts: new Map<string, string>() };
+  const props = { session: "session", data: { funds: [first, last] }, onAddFee: vi.fn(), onAddFund, openSegment: "fund", segments, setOpenSegment: vi.fn(), shortcuts: new Map<string, string>() };
   const view = render(<ComputeDetails {...props} />);
   const add = screen.getByRole("button", { name: "Add Funds" });
   fireEvent.click(add);
@@ -213,7 +213,7 @@ it("keeps the Added marker during local fund moves", () => {
     { id: "add", session: "session", change: { action: "add", fund: { name: "Extra", value: "1.00" } }, status: "queued", error: null, patch: [] },
     { id: "move", session: "session", change: { action: "move", segment: "funds", item, target }, status: "queued", error: null, patch: [] },
   ] });
-  render(<ComputeDetails session="session" data={{ funds: [target, item] }} onAddFee={vi.fn()} onAddFund={vi.fn()} onEndorse={vi.fn()} openSegment="fund" segments={segments} setOpenSegment={vi.fn()} shortcuts={new Map()} />);
+  render(<ComputeDetails session="session" data={{ funds: [target, item] }} onAddFee={vi.fn()} onAddFund={vi.fn()} openSegment="fund" segments={segments} setOpenSegment={vi.fn()} shortcuts={new Map()} />);
   expect(screen.getByText("Extra").closest("article")).toHaveTextContent("Added");
   computeQueueStore.getState().reset();
 });

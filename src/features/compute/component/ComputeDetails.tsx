@@ -1,6 +1,6 @@
 import { ErrorBoundary, ErrorBadge, formStyles, useDragOrder, OrderButtons, type OrderButtonsProps, ConfButton, iconButtonStyle, SuccessIcon, formatLabel, isAmbiguous, type MetadataFeeFactor, type MetadataFeeItem } from "aurora-core";
 import * as Collapsible from "@radix-ui/react-collapsible";
-import { useId, type HTMLAttributes, type ReactNode, type JSX } from "react";
+import { type HTMLAttributes, type ReactNode, type JSX } from "react";
 import { computeQueueStore, type ComputeTask } from "../store/computeQueueStore";
 import { useDetailStore } from "../store/fiscalStore";
 import { ComputeIcon } from "./ComputeIcon";
@@ -153,12 +153,11 @@ export function ComputeDetails({
   session,
   onAddFee,
   onAddFund,
-  onEndorse,
   openSegment,
   segments,
   setOpenSegment,
   shortcuts,
-}: Pick<ComputePanelProps, "onAddFee" | "onAddFund" | "onEndorse" | "segments"> & {
+}: Pick<ComputePanelProps, "onAddFee" | "onAddFund" | "segments"> & {
   data: ComputeResult;
   session: string;
   openSegment: string | null;
@@ -172,16 +171,15 @@ export function ComputeDetails({
         <FiscalSegment session={session} collection={null} onAddFee={onAddFee} onAddFund={onAddFund} currency={false} empty="No fee factors found." items={data.fee_factors ?? []} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FEEFACTOR} shortcut={shortcuts.get(segments.FEEFACTOR) ?? null} title="Factors" />
         <FiscalSegment session={session} collection="fees" onAddFee={onAddFee} onAddFund={onAddFund} currency empty="No fees found." items={data.fees ?? []} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FEE} shortcut={shortcuts.get(segments.FEE) ?? null} title="Fees" />
         <FiscalSegment session={session} collection="funds" onAddFee={onAddFee} onAddFund={onAddFund} currency empty="No fund distributions found." items={data.funds ?? []} onOpen={setOpenSegment} openSegment={openSegment} segment={segments.FUND} shortcut={shortcuts.get(segments.FUND) ?? null} title="Funds" />
-        <ErrorBoundary title="Compute totals" resetKey={data} fallback={failure => <ComputeFooter data={data} session={session} onEndorse={onEndorse} failure={failure.message} />}>
-          <ComputeFooter data={data} session={session} onEndorse={onEndorse} />
+        <ErrorBoundary title="Compute totals" resetKey={data} fallback={failure => <ComputeFooter data={data} session={session} failure={failure.message} />}>
+          <ComputeFooter data={data} session={session} />
         </ErrorBoundary>
       </div>
     </section>
   );
 }
 
-function ComputeFooter({ data, session, onEndorse, failure }: Pick<ComputePanelProps, "onEndorse"> & { data: ComputeResult; session: string; failure?: string }) {
-  const saveStatusId = useId();
+function ComputeFooter({ data, session, failure }: { data: ComputeResult; session: string; failure?: string }) {
   const dirty = computeQueueStore(state => state.tasks.some(task => task.session === session));
   const pending = computeQueueStore(state => state.tasks.some(task => task.session === session && task.status === "processing"));
   const error = computeQueueStore(state => state.error ?? state.tasks.find(task => task.session === session && task.error)?.error);
@@ -198,14 +196,14 @@ function ComputeFooter({ data, session, onEndorse, failure }: Pick<ComputePanelP
           Fees ({currencyFormat.format(feeTotal! / 100)}) and Funds ({currencyFormat.format(fundTotal! / 100)}) do not match.
         </div> : null}
         {error ? <div aria-label="Save failed" role="alert" style={capabilityStyles.notice("error")}>{error}</div> : null}
-        <p aria-label="Save status" role="status" style={computeStyles.saveStatus}>
-          <span id={saveStatusId}>{failure ? <ErrorBadge label="Save status" error={failure} /> : pending ? "Saving changes…" : dirty ? "Unsaved changes. Save changes before endorsing." : !balanced ? "Fees and Funds must match before endorsing." : "Ready to endorse."}</span>
-        </p>
-        <div aria-label="Compute actions" role="group" style={{ ...capabilityStyles.computeActions, gap: formStyles.actions.gap, flexWrap: formStyles.actions.flexWrap }}>
-          {dirty ? <>
+        {dirty ? <>
+          <p aria-label="Save status" role="status" style={computeStyles.saveStatus}>
+            {pending ? "Saving changes…" : "Unsaved changes."}
+          </p>
+          <div aria-label="Compute actions" role="group" style={{ ...capabilityStyles.computeActions, gap: formStyles.actions.gap, flexWrap: formStyles.actions.flexWrap }}>
             <ConfButton disabled={pending} label="Save" requireConfirmation={false} onConfirm={() => computeQueueStore.getState().save(session)} />
             <ConfButton disabled={pending} label="Discard changes" requireConfirmation={false} variant="secondary" onConfirm={() => computeQueueStore.getState().discard(session)} />
-          </> : <ConfButton aria-describedby={saveStatusId} disabled={!balanced} label="Endorse" onConfirm={onEndorse} />}
-        </div>
+          </div>
+        </> : null}
   </>;
 }

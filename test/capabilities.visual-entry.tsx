@@ -14,7 +14,7 @@ if (capability !== "compute" && capability !== "composition" && capability !== "
 if (state !== "ready" && state !== "pending" && state !== "failed" && state !== "data-failed") {
   throw new Error("A valid capability state is required.");
 }
-const requestBase = { 
+const requestBase = {
   document: "visual.pdf",
   authToken: "token",
   documentApiGatewayUrl: "https://example.test",
@@ -47,7 +47,6 @@ async function status() {
   if (state === "failed") return { data: "No secrets found to redact", status: "error" as const };
   if (state === "data-failed" && checks === 1) return { data: null, status: "processing" as const };
   if (state === "pending") return { data: null, status: "processing" as const };
-  if (capability === "manifest" && checks === 1) return { data: null, status: "processing" as const };
   return { data: null, status: "completed" as const };
 }
 
@@ -67,7 +66,7 @@ function App() {
     );
   }
   if (capability === "compute") {
-    return <ComputePanel onAddFee={() => undefined} onAddFund={() => undefined} onResource={request => request.callback({ ok: true, data: "metadata-etag" })} request={{ ...requestBase, capability, refresh: false }} segments={segments} workerClient={{ model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), status, submit: async () => ({ data: null, status: "completed" }), data: async () => ({ result: { fee_factors: [{ amount: "4", explanation: "Counted pages.", name: "Page count" }], fees: [{ amount: "125", formula: "base + pages", name: "Recording fee" }], funds: [{ amount: params.get("balanced") === "true" ? "125" : "75", formula: "flat", name: "General fund" }], heading: { class: "deed", title: "Visual" } }, metadataEtag: "metadata-etag" }) }} onComplete={() => undefined} onEndorse={() => undefined} onError={() => undefined} />;
+    return <ComputePanel onAddFee={() => undefined} onAddFund={() => undefined} onResource={request => request.callback({ ok: true, data: "metadata-etag" })} request={{ ...requestBase, capability, refresh: false }} segments={segments} workerClient={{ model: async () => ({ model: { fee_factors: [], fees: [], funds: [] }, etag: '"v1"' }), status, submit: async () => ({ data: null, status: "completed" }), data: async () => ({ result: { fee_factors: [{ amount: "4", explanation: "Counted pages.", name: "Page count" }], fees: [{ amount: "125", formula: "base + pages", name: "Recording fee" }], funds: [{ amount: params.get("balanced") === "true" ? "125" : "75", formula: "flat", name: "General fund" }], heading: { class: "deed", title: "Visual" } }, metadataEtag: "metadata-etag" }) }} onComplete={() => undefined} onError={() => undefined} />;
   }
   if (capability === "composition") {
     return <CompositionPanel canLink callbacks={{}} request={{ ...requestBase, capability }} workerClient={{ status, submit: async () => ({ data: null, status: "completed" }), data: async () => ({ chain: [{ class: "deed", required: "YES", role: "vesting", title: "Grant Deed" }], history: { conveyance: [{ date: "2025-01-02", grantees: "Alice", grantors: "Bob" }], encumbrance: [], mortgage: [{ borrowers: "Alice", lender: "Citywide Bank" }] } }), options: async () => ["10 Main Street", "APN-123"] }} onComplete={() => undefined} onError={() => undefined} onLinkBatch={async (group, names) => ({ group, batch: { code: "batch-1", id: "batch-1", name: names[0] } })} onViewBatch={() => undefined} />;
@@ -81,7 +80,7 @@ function App() {
       return { pdf: "https://storage.test/subscription/visual-session/redacted.pdf?sig=token" };
     } }} onComplete={() => undefined} onError={() => undefined} />;
   }
-  return <ManifestPanel request={{ ...requestBase, capability: "manifest" }} workerClient={{ status, submit: async () => ({ data: null, status: "processing" }), data: async () => ({ pdf: "https://storage.test/subscription/visual-session/manifest.pdf?sig=token" }) }} onComplete={() => undefined} onError={() => undefined} />;
+  return <ManifestPanel request={{ ...requestBase, capability: "manifest" }} workerClient={params.get("transport") === "http" ? undefined : { status, submit: async () => ({ data: null, status: "processing" }), data: async () => ({ pdf: "https://storage.test/subscription/visual-session/manifest.pdf?sig=token" }) }} onComplete={() => undefined} onError={() => undefined} />;
 }
 
 createRoot(document.getElementById("root")!).render(

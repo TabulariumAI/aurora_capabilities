@@ -905,14 +905,14 @@ Render Computedata through `ComputeDetails`, with Compute-owned sections, rows, 
 - default open segment: `FEE`
 - hide the base document sections and document heading
 - show the existing empty states for optional fiscal collections
-- retain the Endorse action; user_svc prepares full compute Metadata for recording
+- keep endorsement in the host sidebar; the Compute panel has no Endorse action or endorsement readiness label
 - label the factor section `Factors` and right-align all amounts
 - add Reprocess, Clear, and Add confirmation controls to the Fees and Funds headers
 - right-align amounts and keep controls on the row; Fees and Funds share a value column, while Factors use a compact Copy/Expand area with their values farther right
 - order fee/fund controls as Copy, Delete, Edit, and Expand
 - Delete and Edit use confirmation and informational alerts; Expand shows the formula and available explanation, with no Formula icon or callout
 - retain immediate copy and expandable explanations
-- show Total below Funds and above Endorse regardless of the expanded section; sum fees and funds in cents and show both amounts in an error below Total when they differ
+- show Total below Funds regardless of the expanded section; sum fees and funds in cents and show both amounts in an error below Total when they differ
 - show shortcut underlines using the exact map below
 - do not bind global keyboard shortcuts
 

@@ -4,13 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { ComputeDetails } from "../component/ComputeDetails";
 import type { ComputeResult } from "../../../shared/type/capability.types";
 
-const onEndorse = vi.fn();
-
 const segments = { ACKNOWLEDGMENT: "acknowledgment", JUDGMENT: "judgment", ENDORSEMENT: "endorsement", FEE: "fee", FEEFACTOR: "factor", FUND: "fund", LEGAL: "legal", MONETARY: "monetary", PAGE: "page", PARTY: "party", PROPERTY: "property", REFERENCE: "reference", SECRETS: "secrets", TITLE: "title", TRANSACTION: "transaction", VITAL: "vital" };
 
 function View({ data }: { data: ComputeResult }) {
   const [openSegment, setOpenSegment] = useState<string | null>(null);
-  return <ComputeDetails session="totals-session" onAddFee={() => undefined} onAddFund={() => undefined} data={data} onEndorse={onEndorse} openSegment={openSegment} segments={segments} setOpenSegment={setOpenSegment} shortcuts={new Map()} />;
+  return <ComputeDetails session="totals-session" onAddFee={() => undefined} onAddFund={() => undefined} data={data} openSegment={openSegment} segments={segments} setOpenSegment={setOpenSegment} shortcuts={new Map()} />;
 }
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
@@ -29,7 +27,8 @@ describe("Compute totals", () => {
       expect(total).toHaveTextContent("$91.00");
     }
     expect(total.closest("[data-state]")).toBeNull();
-    expect(screen.getByRole("button", { name: "Endorse" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Endorse" })).toBeNull();
+    expect(screen.queryByRole("status", { name: "Save status" })).toBeNull();
   });
 
   it("shows both totals in an error below the total row when they differ", () => {
@@ -40,11 +39,7 @@ describe("Compute totals", () => {
     expect(error).toHaveTextContent("Fees ($91.00) and Funds ($90.00) do not match.");
     expect(error).toHaveStyle({ textAlign: "center", alignSelf: "center" });
     expect(total.nextElementSibling).toBe(error);
-    const endorse = screen.getByRole("button", { name: "Endorse" });
-    expect(endorse).toBeDisabled();
-    expect(endorse).toHaveAccessibleDescription("Fees and Funds must match before endorsing.");
-    fireEvent.click(endorse);
-    expect(onEndorse).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: "Endorse" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
     expect(screen.queryByText("Ready to endorse.")).toBeNull();
   });
@@ -58,7 +53,7 @@ describe("Compute totals", () => {
     render(<View data={{ fees: fees.map((amount, index) => ({ amount, formula: amount, name: `Fee ${index}` })), funds: funds.map((amount, index) => ({ amount, formula: amount, name: `Fund ${index}` })) }} />);
     expect(screen.getByRole("group", { name: "Compute total" })).toHaveTextContent(total);
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByRole("button", { name: "Endorse" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Endorse" })).toBeNull();
   });
 
   it("updates totals and clears a mismatch when new data arrives", () => {
@@ -67,14 +62,10 @@ describe("Compute totals", () => {
     expect(screen.getByRole("alert")).toHaveTextContent("Funds ($0.00)");
     view.rerender(<View data={{ fees, funds: [{ amount: "91", formula: "91", name: "Distribution" }] }} />);
     expect(screen.queryByRole("alert")).toBeNull();
-    expect(screen.getByRole("button", { name: "Endorse" })).toBeEnabled();
-    fireEvent.click(screen.getByRole("button", { name: "Endorse" }));
-    expect(screen.getByRole("button", { name: "Confirm" })).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Endorse" })).toBeNull();
     view.rerender(<View data={{ fees, funds: [] }} />);
-    const confirm = screen.getByRole("button", { name: "Confirm" });
-    expect(confirm).toBeDisabled();
-    fireEvent.click(confirm);
-    expect(onEndorse).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Funds ($0.00)");
+    expect(screen.queryByRole("button", { name: "Confirm" })).toBeNull();
     view.rerender(<View data={{ fees: [{ amount: "100", formula: "100", name: "Recording" }], funds: [{ amount: "100", formula: "100", name: "Distribution" }] }} />);
     expect(screen.getByRole("group", { name: "Compute total" })).toHaveTextContent("$100.00");
   });

@@ -62,7 +62,12 @@ export type RecordRequest = CapabilityRequestBase & {
 export type RedactRequest = CapabilityRequestBase & {
   capability: "redact";
 };
-export type ManifestRequest = CapabilityRequestBase & { capability: "manifest" };
+export type ManifestOptions = {
+  include_pages: boolean;
+  include_gates: boolean;
+  include_notes: boolean;
+};
+export type ManifestRequest = CapabilityRequestBase & { capability: "manifest"; options?: ManifestOptions };
 
 export type CapabilityRequest =
   | ComputeRequest
@@ -195,7 +200,7 @@ export type RedactWorkerClient = {
 
 export type ManifestWorkerClient = {
   status(token: string, session: string): Promise<CapabilityPoll>;
-  submit(token: string, session: string): Promise<CapabilityPoll>;
+  submit(token: string, session: string, options: ManifestOptions): Promise<CapabilityPoll>;
   data(token: string, session: string): Promise<ManifestResult>;
 };
 
@@ -204,7 +209,6 @@ export type ComputePanelProps = {
   onAddFund(anchor: HTMLElement): void;
   onResource(request: ResourceRequest): void;
   onComplete: (terminal: CapabilityComplete<"compute", ComputeResult>) => void;
-  onEndorse: () => void;
   onError: (failure: ComputeFailure) => void;
   request: ComputeRequest;
   segments: MetadataSegments;

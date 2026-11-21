@@ -46,7 +46,7 @@ function setup(name: CapabilityName) {
       case "composition": return useComposition({ ...input, request: { ...value, capability: "composition" } });
       case "record": return useRecord({ ...input, request: { ...value, capability: "record" } });
       case "redact": return useRedact({ ...input, request: { ...value, capability: "redact" } });
-      case "manifest": return useManifest({ ...input, request: { ...value, capability: "manifest" } });
+      case "manifest": return useManifest({ ...input, request: { ...value, capability: "manifest", options: { include_pages: false, include_gates: false, include_notes: false } } });
     }
   }
   return { pending, client, callbacks, useRun };
@@ -143,5 +143,5 @@ it.each(names)("does not retry failed %s work when its panel rerenders or reopen
   renderHook(() => useRun(request));
   await act(async () => {});
   expect(callbacks.onError).toHaveBeenCalledTimes(1);
-  expect(name === "compute" || name === "composition" ? client.submit : client.status).toHaveBeenCalledTimes(1);
+  expect(name === "compute" || name === "composition" || name === "manifest" ? client.submit : client.status).toHaveBeenCalledTimes(1);
 });

@@ -3,10 +3,11 @@ import { createManifestWorkerClient } from "../worker/manifestWorkerClient";
 
 describe("manifest worker client", () => {
   afterEach(() => vi.restoreAllMocks());
-  it("uses report route", async () => {
+  it.each(Array.from({ length: 8 }, (_, mask) => mask))("posts the selected options to the report route, combination %i", async mask => {
     const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "processing", data: null })));
-    await createManifestWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1");
-    expect(fetchMock).toHaveBeenCalledWith("https://doc.test/v1/manifest/s1/report", expect.objectContaining({ method: "POST", cache: "no-store" }));
+    const options = { include_pages: Boolean(mask & 1), include_gates: Boolean(mask & 2), include_notes: Boolean(mask & 4) };
+    await createManifestWorkerClient({ apiBaseUrl: "https://doc.test" }).submit("token", "s1", options);
+    expect(fetchMock).toHaveBeenCalledWith("https://doc.test/v1/manifest/s1/report", expect.objectContaining({ method: "POST", cache: "no-store", body: JSON.stringify(options) }));
   });
 
   it("returns every manifest artifact URL unchanged", async () => {

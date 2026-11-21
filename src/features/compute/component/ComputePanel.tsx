@@ -22,7 +22,6 @@ export function ComputePanel(props: ComputePanelProps): JSX.Element {
         data={result}
         onAddFee={props.onAddFee}
         onAddFund={props.onAddFund}
-        onEndorse={props.onEndorse}
         openSegment={store.openSegment}
         segments={props.segments}
         setOpenSegment={useComputeStore.getState().setOpenSegment}
