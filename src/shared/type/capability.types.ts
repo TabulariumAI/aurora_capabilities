@@ -15,6 +15,8 @@ export type CapabilityOpenRequest = {
 export type CapabilityStatus = "idle" | "loading" | "ready" | "error";
 
 export type CapabilityError = {
+  retryAfter?: string;
+  retryAt?: number;
   code?: string;
   details?: unknown;
   error: string;

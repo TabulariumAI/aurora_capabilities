@@ -1,3 +1,4 @@
+import { retryInfo } from "aurora-core/retry-info";
 import type { CapabilityError, CapabilityPoll } from "../type/capability.types";
 
 type RawResponse = {
@@ -30,7 +31,7 @@ function toError(response: Response, data: RawResponse): CapabilityError {
   return {
     code: data.code ?? (response.status === 401 ? "unauthorized" : "server_error"),
     details: data,
-    error: data.error ?? data.message ?? response.statusText,
+    ...retryInfo(response, data.error ?? data.message ?? response.statusText),
     status: response.status,
   };
 }
@@ -59,7 +60,7 @@ export async function capabilityFetch(
       throw {
         code: "parse_error",
         details: { body: raw },
-        error: "Response body is not valid JSON.",
+        ...retryInfo(response, "Response body is not valid JSON."),
         status: response.status,
       } satisfies CapabilityError;
     }
@@ -104,6 +105,8 @@ export function workerError(error: unknown, defaultMessage: string): CapabilityE
     details: candidate?.details,
     error: candidate?.error ?? candidate?.message ?? defaultMessage,
     status: candidate?.status,
+    retryAfter: candidate?.retryAfter,
+    retryAt: candidate?.retryAt,
   };
 }
 

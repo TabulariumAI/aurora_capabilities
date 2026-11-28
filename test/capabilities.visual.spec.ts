@@ -333,3 +333,25 @@ test("redaction connects the intro and every status through a data failure", asy
   await expect(progress.getByRole("button")).toHaveCount(0);
   await progress.screenshot({ path: testInfo.outputPath("redact-data-failed.png") });
 });
+
+for (const width of [390, 1440]) {
+  test(`gateway retry availability stays visible without replay at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 700 });
+    let calls = 0;
+    await page.route("https://example.test/v1/manifest/**", async route => {
+      calls++;
+      await route.fulfill({ status: 429, contentType: "application/json", headers: { "access-control-allow-origin": "*", "access-control-expose-headers": "Retry-After", "Retry-After": "30" }, body: '{"code":"throttled","error":"The service is busy."}' });
+    });
+    await page.goto("/?capability=manifest&state=ready&transport=http");
+    await page.getByRole("button", { name: "Generate" }).click();
+    await page.getByRole("button", { name: "Confirm", exact: true }).click();
+    const message = page.getByText(/The service is busy\. Retry after /).first();
+    await expect(message).toBeVisible();
+    const box = await message.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(0);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+    await page.screenshot({ path: testInfo.outputPath(`gateway-retry-${width}.png`), fullPage: true });
+    expect(calls).toBe(1);
+  });
+}

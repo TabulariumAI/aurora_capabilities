@@ -6,7 +6,7 @@ afterEach(() => vi.restoreAllMocks());
 it("starts background Compute without opening its panel or requiring metadata", async () => {
   const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ status: "processing", data: "" })));
   await expect(generateCompute({  apiGatewayUrl: "https://gateway", authToken: "token", session: "s" })).resolves.toMatchObject({ status: "processing" });
-  expect(fetch).toHaveBeenCalledExactlyOnceWith("https://gateway/v1/compute/s/calculate", expect.objectContaining({ method: "POST", body: '{"etag":null}' }));
+  expect(fetch).toHaveBeenCalledExactlyOnceWith("https://gateway/v1/compute/s/calculate", expect.objectContaining({ method: "POST", body: "{}" }));
   expect(useComputeStore.getState().visible).toBe(false);
 });
 

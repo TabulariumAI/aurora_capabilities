@@ -25,6 +25,7 @@ export default defineConfig({
       "@radix-ui/react-tooltip": path.resolve(rootDir, "node_modules/@radix-ui/react-tooltip"),
       "@radix-ui/react-use-callback-ref": path.resolve(rootDir, "node_modules/@radix-ui/react-use-callback-ref"),
       "@radix-ui/react-use-layout-effect": path.resolve(rootDir, "node_modules/@radix-ui/react-use-layout-effect"),
+      "aurora-core/retry-info": fileURLToPath(new URL("../aurora_core/src/retryInfo.ts", import.meta.url)),
       "aurora-core": fileURLToPath(new URL("../aurora_core/src/public-api.ts", import.meta.url))
     },
     dedupe: ["react", "react-dom", "zustand", "@radix-ui/react-checkbox", "@radix-ui/react-collapsible", "@radix-ui/react-context", "@radix-ui/react-popover", "@radix-ui/react-scroll-area", "@radix-ui/react-tooltip"],
@@ -43,6 +44,7 @@ export default defineConfig({
         "react-dom/client",
         "react-dom/server",
         "aurora-core",
+        "aurora-core/retry-info",
         "@radix-ui/react-scroll-area"
       ]
     }

@@ -8,7 +8,7 @@ export async function requestComputeModel(apiBaseUrl: string, token: string, ses
 }
 
 export async function submitCompute(apiBaseUrl: string, token: string, session: string, etag: string | null, refresh: boolean) {
-  return pollFromResponse(await capabilityFetch(token, `${apiBaseUrl}/v1/compute/${session}/${refresh ? "recalculate" : "calculate"}`, { method: "POST", body: refresh ? {} : { etag } }));
+  return pollFromResponse(await capabilityFetch(token, `${apiBaseUrl}/v1/compute/${session}/${refresh ? "recalculate" : "calculate"}`, { method: "POST", body: {}, ...(!refresh && etag !== null ? { headers: { "If-None-Match": JSON.stringify(etag) } } : {}) }));
 }
 
 export async function statusCompute(apiBaseUrl: string, token: string, session: string) {
